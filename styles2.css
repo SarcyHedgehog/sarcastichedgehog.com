@@ -1,0 +1,100 @@
+/* styles.css */
+
+/* Global styles */
+body {
+    background-color: #FFFFFF;
+    color: #FFFFFF; /* Text color changed to white */
+    font-family: Arial;
+    font-weight: normal;
+    font-size: 17px;
+    line-height: 1.1875;
+    margin: 0;
+    padding: 0;
+}
+
+/* Header styles */
+#header {
+    display: flex;
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    z-index: 7777;
+    padding: 10px 10px 10px 10px;
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.05);
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    align-content: flex-start;
+    margin: 0;
+    background-color: #343A40;
+    background-image: none;
+    border: 0px solid #CCCCCC;
+    border-radius: 0px;
+    box-sizing: border-box;
+    font-size: 0;
+}
+
+/* Add other header styles here */
+
+/* Card styles */
+.card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 100%;
+    align-self: auto;
+    box-sizing: border-box;
+    margin: 0;
+    background-color: transparent;
+    background-image: none;
+    border: 0px solid #DEDEDE;
+    border-radius: 0px;
+    text-align: center;
+}
+
+/* Add other card styles here */
+
+/* Footer styles */
+#footer {
+    display: flex;
+    position: relative;
+    padding: 10px 10px 10px 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    align-content: flex-start;
+    margin: 0;
+    background-color: #414A4F;
+    background-image: none;
+    border: 0px solid #414A4F;
+    border-radius: 0px;
+    box-sizing: border-box;
+    font-size: 0;
+}
+
+/* Add other footer styles here */
+
+/* Text styles */
+#Heading1 {
+    color: #FFFFFF;
+    font-family: Arial;
+    font-weight: normal;
+    font-style: normal;
+    font-size: 19px;
+    margin: 0;
+    text-align: left;
+}
+
+/* Add other text styles here */
+
+/* Hyperlink styles for first column */
+table tbody tr td:first-child a {
+    color: #FFFFFF; /* Hyperlink color changed to white */
+    font-weight: bold; /* Hyperlink text made bold */
+    text-decoration: none; /* Remove underline */
+}

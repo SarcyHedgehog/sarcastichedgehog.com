@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Table with Yes/No Filter and Popup</title>
+<link href="styles.css" rel="stylesheet">
+<style>
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        font-family: Arial;
+        font-size: 17px;
+        color: #000000;
+        line-height: 1.1875;
+        margin: 0;
+        padding: 0;
+    }
+    th, td {
+        border: 1px solid #dddddd;
+        text-align: left;
+        padding: 8px;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+</style>
+</head>
+<body>
+
+<div id="header">
+    <div id="wb_Heading1" style="display:inline-block;z-index:0;">
+        <h1 id="Heading1">Ariolasoft UK</h1>
+    </div>
+    <div id="wb_CssMenu1" style="display:inline-block;height:28px;z-index:1;">
+        <ul id="CssMenu1" role="menubar" class="nav">
+            <li role="menuitem" class="nav-item firstmain"><a class="nav-link" href="./ariolasoft/titles.html" target="_self"><i class="fa fa-cubes">&nbsp;</i>Ariolasoft</a></li>
+        </ul>
+    </div>
+</div>
+
+<h2>Table with Yes/No Filter and Popup</h2>
+
+<table id="myTable">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Year <br> <select class="filter" onchange="filterTable(0)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>Developer <br> <select class="filter" onchange="filterTable(1)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>Label <br> <select class="filter" onchange="filterTable(2)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>C64 <br> <select class="filter" onchange="filterTable(3)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>CPC <br> <select class="filter" onchange="filterTable(4)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>Spectrum <br> <select class="filter" onchange="filterTable(5)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>Atari <br> <select class="filter" onchange="filterTable(6)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>MS-DOS <br> <select class="filter" onchange="filterTable(7)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>PC Boot <br> <select class="filter" onchange="filterTable(8)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>ST <br> <select class="filter" onchange="filterTable(9)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>Amiga <br> <select class="filter" onchange="filterTable(10)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>Apple II <br> <select class="filter" onchange="filterTable(11)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>PCW <br> <select class="filter" onchange="filterTable(12)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+      <th>C16 <br> <select class="filter" onchange="filterTable(13)">
+        <option value="all">All</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="#" onclick="openPopup('images/screenshot.png')">Choplifter!</a></td>
+      <td>1983</td>
+      <td>Brøderbund</td>
+      <td>Brøderbund</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>No</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>No</td>
+      <td>No</td>
+      <td>No</td>
+      <td>No</td>
+      <td>No</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td><a href="#" onclick="openPopup('images/screenshot.png')">David's Midnight Magic</a></td>
+      <td>1983</td>
+      <td>Brøderbund</td>
+      <td>Brøderbund</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>No</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>No</td>
+      <td>No</td>
+      <td>No</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>No</td>
+    </tr>
+    <tr>
+        <td><a href="#" onclick="openPopup('images/screenshot.png')">Lode Runner</a></td>
+        <td>1983</td>
+        <td>Brøderbund</td>
+        <td>Brøderbund</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>No</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>No</td>
+      </tr>
+    <!-- Add more rows here -->
+  </tbody>
+</table>
+
+<script>
+function filterTable(columnIndex) {
+  var filterValues = [];
+  var filterSelects = document.getElementsByClassName("filter");
+  for (var i = 0; i < filterSelects.length; i++) {
+    filterValues.push(filterSelects[i].value);
+  }
+  
+  var table = document.getElementById("myTable");
+  var rows = table.getElementsByTagName("tr");
+  
+  for (var i = 1; i < rows.length; i++) {
+    var cells = rows[i].getElementsByTagName("td");
+    var showRow = true;
+    for (var j = 1; j < cells.length; j++) { // Start from 1 to skip the first column (Title)
+      var cellText = cells[j].innerText || cells[j].textContent;
+      if (filterValues[j - 1] !== "all" && cellText.trim().toUpperCase() !== filterValues[j - 1].toUpperCase()) {
+        showRow = false;
+        break;
+      }
+    }
+    rows[i].style.display = showRow ? "" : "none";
+  }
+}
+
+function openPopup(imageSrc) {
+  var newWindow = window.open("", "", "width=400,height=400,top=100,left=100");
+  newWindow.document.write('<img src="' + imageSrc + '" alt="Screenshot">');
+  newWindow.document.close();
+}
+</script>
+
+</body>
+</html>

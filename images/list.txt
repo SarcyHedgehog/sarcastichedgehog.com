@@ -1,0 +1,21 @@
+ Volume in drive C is OS
+ Volume Serial Number is 1EE2-291F
+
+ Directory of C:\Users\mrmar\OneDrive\shlariola\images
+
+05/04/2024  18:14    <DIR>          .
+05/04/2024  17:36    <DIR>          ..
+12/06/2023  23:59            16,244 136448-reaktor-software.png
+12/06/2023  23:52            87,320 39steps.png
+05/06/2023  14:47            47,003 ariolasoftlogo.png
+27/11/2023  19:11           116,331 broderbund2.png
+12/06/2023  23:25            10,918 EA-logo.png
+05/04/2024  18:14                 0 list.txt
+05/06/2023  14:47            47,003 logo.png
+12/06/2023  23:48               331 reaktor_software_02.png
+12/06/2023  23:55           318,611 starlight-software.jpg
+               9 File(s)        643,761 bytes
+
+     Total Files Listed:
+               9 File(s)        643,761 bytes
+               2 Dir(s)  856,975,749,120 bytes free
