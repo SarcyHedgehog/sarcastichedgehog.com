@@ -1,5 +1,5 @@
-*.csv
-*.xlsx
+.csv
+.xlsx
 index2.html
 titles2.html
 titles/filename.bat
