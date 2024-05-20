@@ -1,0 +1,37 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f4f4f4;
+}
+
+#image-container {
+    width: 837px; /* Width of the widest image */
+    height: 760px; /* Height of the tallest image */
+    background-color: #333; /* Dark grey background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#image-container img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.navigation button {
+    font-weight: normal;
+    cursor: pointer;
+    padding: 5px 10px; /* Add padding for better button appearance */
+    margin: 5px; /* Space between buttons */
+    background: #eee; /* Light grey background for buttons */
+    border: 1px solid #ccc; /* Border for buttons */
+    border-radius: 5px; /* Rounded corners for buttons */
+}
+
+.navigation button.active {
+    font-weight: bold;
+    background: #ddd; /* Slightly darker background for active button */
+}
