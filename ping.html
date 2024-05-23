@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internet Connection Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            padding: 50px;
+        }
+        #status {
+            font-size: 2em;
+            margin-top: 20px;
+        }
+    </style>
+    <script>
+        function updateOnlineStatus() {
+            const status = document.getElementById('status');
+            if (navigator.onLine) {
+                status.textContent = 'Online';
+                status.style.color = 'green';
+            } else {
+                status.textContent = 'Offline';
+                status.style.color = 'red';
+                alert('You are offline!');
+            }
+        }
+
+        window.addEventListener('load', updateOnlineStatus);
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        setInterval(() => {
+            if (!navigator.onLine) {
+                alert('You are offline!');
+            }
+        }, 5000); // Check every 5 seconds
+    </script>
+</head>
+<body>
+    <h1>Internet Connection Monitor</h1>
+    <div id="status">Checking...</div>
+</body>
+</html>
