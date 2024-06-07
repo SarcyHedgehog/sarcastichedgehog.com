@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head><meta charset="utf-8"></head>
+  <body>
+    <script type="module">
+      import {load} from "https://croquet.io/webshowcase/v1.js";
+      load({
+        title: "My Web Showcase", 
+        showcase: "gallery", 
+        cards: [
+          // each item in cards array has a 'place' to specify the location in the art gallery
+          // 'type' is either "image", "pdf", or "video"
+          // 'path' specifies the location of the asset, either as full URL or as path relative to this html file
+          {place: 1, type: "image", path: "https://www.sarcastichedgehog.com/images/logo.png"},
+          {place: 2, type: "pdf", path: "https://croquet.io/webshowcase/site/CompanyDeck.pdf"},
+          {place: 3, type: "video", path: "https://croquet.io/webshowcase/site/CustomerVideo.mp4", muted: false},
+          {place: 4, type: "image", path: "https://www.sarcastichedgehog.com/titles/images/loderunner.png"},
+          {place: 5, type: "image", path: "https://www.sarcastichedgehog.com/titles/images/dmm.png", urlLink: "https://www.sarcastichedgehog.com/titles/dmm.html"},
+          {place: 6, type: "image", path: "https://croquet.io/webshowcase/site/sunset-tree-on-hill-1.jpg"},
+          {place: 7, type: "image", path: "https://www.sarcastichedgehog.com/titles/images/choplifter.jpg"},
+          {place: 8, type: "image", path: "https://www.sarcastichedgehog.com/titles/images/axisassassin.png"},
+          {place: 9, type: "image", path: "https://www.sarcastichedgehog.com/titles/images/archon.png"},
+        ],
+        privacy: "invite", // "public" or "invite"
+        voiceChat: true,
+        appId: "io.croquet.james.poole.webshowcase",
+        apiKey: "1HGJNmo2Hh7K5gPh3AIBzpLHkGntet8ANHexfD400",
+      });
+    </script>
+  </body>
+</html>w
