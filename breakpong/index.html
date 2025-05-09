@@ -18,436 +18,137 @@
     .small-text { font-size: 24px; }
   </style>
   <script type="module">
+    console.log("Script block parsing started..."); // Log 1
+
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js';
     import * as Multisynq from 'https://cdn.jsdelivr.net/npm/@multisynq/client@1/bundled/multisynq-client.esm.js';
 
+    console.log("Imports successful."); // Log 2
+
     // --- Constants ---
-    const C = { paddleSpeed: 0.1, ballSpeed: 0.05, winScore: 10 };
-    const MODEL_TICK_RATE_MS = 33;
-    const BALL_RADIUS = 0.1;
-    const BRICK_COLLISION_EPSILON = 0.001;
-    const COURT_WIDTH = 8.0;
-    const COURT_DEPTH = 5.0;
+    try {
+        const C = { paddleSpeed: 0.1, ballSpeed: 0.05, winScore: 10 };
+        const MODEL_TICK_RATE_MS = 33;
+        const BALL_RADIUS = 0.1;
+        const BRICK_COLLISION_EPSILON = 0.001;
+        const COURT_WIDTH = 8.0;
+        const COURT_DEPTH = 5.0;
+        const PADDLE_THICKNESS_X = 0.2;
+        const PADDLE_VISUAL_HEIGHT_Y = 0.2;
+        const PADDLE_LENGTH_Z = 1.2;
+        const PADDLE_VIEW_X_OFFSET_FROM_EDGE = 0.1;
+        const PADDLE_MODEL_CENTER_X_ABS = COURT_WIDTH / 2 - PADDLE_THICKNESS_X / 2 - PADDLE_VIEW_X_OFFSET_FROM_EDGE;
+        const PADDLE1_MODEL_CENTER_X = -PADDLE_MODEL_CENTER_X_ABS;
+        const PADDLE2_MODEL_CENTER_X = PADDLE_MODEL_CENTER_X_ABS;
+        const PADDLE1_INNER_EDGE_X = PADDLE1_MODEL_CENTER_X + PADDLE_THICKNESS_X / 2;
+        const PADDLE2_INNER_EDGE_X = PADDLE2_MODEL_CENTER_X - PADDLE_THICKNESS_X / 2;
+        const PADDLE_SHRINK_FACTOR = 0.5;
+        const PADDLE_SHRINK_DURATION_MS = 20000;
+        const WALL_BRICK_WIDTH = 0.25;
+        const WALL_BRICK_DEPTH = 0.5;
+        const WALL_NUM_BRICK_SEGMENTS_WIDE = 5;
+        const WALL_TOTAL_WIDTH = WALL_NUM_BRICK_SEGMENTS_WIDE * WALL_BRICK_WIDTH;
+        const WALL_NUM_ROWS_DEEP = Math.round(COURT_DEPTH / WALL_BRICK_DEPTH);
+        const BRICK_VISUAL_HEIGHT_Y = 0.2;
+        const RED_BRICK_CHANCE = 0.15;
+        const PURPLE_BRICK_CHANCE = 0.1;
+        const PORTAL_RADIUS = BALL_RADIUS * 1.8;
+        const PORTAL_COLOR_P1 = 0x0077ff;
+        const PORTAL_COLOR_P2 = 0xffaa00;
+        const PORTAL_TUBE_RADIUS_FACTOR = 0.20;
+        const PORTAL_COOLDOWN_MS = 750;
+        const PORTAL_SPEED_FACTOR = 0.3;
+        const PORTAL_PADDLE_SIDE_X_MARGIN = 0.2;
+        const P1_PORTAL_X_OUTER_BOUNDARY_CENTER = PADDLE1_INNER_EDGE_X + PORTAL_RADIUS + PORTAL_PADDLE_SIDE_X_MARGIN;
+        const P1_PORTAL_X_INNER_BOUNDARY_CENTER = -(WALL_TOTAL_WIDTH / 2) - PORTAL_RADIUS;
+        const P2_PORTAL_X_INNER_BOUNDARY_CENTER = (WALL_TOTAL_WIDTH / 2) + PORTAL_RADIUS;
+        const P2_PORTAL_X_OUTER_BOUNDARY_CENTER = PADDLE2_INNER_EDGE_X - PORTAL_RADIUS - PORTAL_PADDLE_SIDE_X_MARGIN;
+        const PORTAL_1_INITIAL_X = (P1_PORTAL_X_OUTER_BOUNDARY_CENTER + P1_PORTAL_X_INNER_BOUNDARY_CENTER) / 2;
+        const PORTAL_1_INITIAL_Y = 0;
+        const PORTAL_2_INITIAL_X = (P2_PORTAL_X_INNER_BOUNDARY_CENTER + P2_PORTAL_X_OUTER_BOUNDARY_CENTER) / 2;
+        const PORTAL_2_INITIAL_Y = 0;
+        const BRICK_COLOR_GREEN = 0x00bb00;
+        const BRICK_COLOR_RED = 0xcc0000;
+        const BRICK_COLOR_PURPLE = 0x9900cc;
 
-    // Paddle
-    const PADDLE_THICKNESS_X = 0.2;
-    const PADDLE_VISUAL_HEIGHT_Y = 0.2;
-    const PADDLE_LENGTH_Z = 1.2;
-    const PADDLE_VIEW_X_OFFSET_FROM_EDGE = 0.1;
-    const PADDLE_MODEL_CENTER_X_ABS = COURT_WIDTH/2 - PADDLE_THICKNESS_X/2 - PADDLE_VIEW_X_OFFSET_FROM_EDGE;
-    const PADDLE1_MODEL_CENTER_X = -PADDLE_MODEL_CENTER_X_ABS;
-    const PADDLE2_MODEL_CENTER_X = PADDLE_MODEL_CENTER_X_ABS;
-    const PADDLE1_INNER_EDGE_X = PADDLE1_MODEL_CENTER_X + PADDLE_THICKNESS_X / 2;
-    const PADDLE2_INNER_EDGE_X = PADDLE2_MODEL_CENTER_X - PADDLE_THICKNESS_X / 2;
-    const PADDLE_SHRINK_FACTOR = 0.5; // NEW: How much paddle shrinks
-    const PADDLE_SHRINK_DURATION_MS = 20000; // NEW: 20 seconds
+        console.log("Constants defined successfully."); // Log 3
 
-    // Bricks
-    const WALL_BRICK_WIDTH = 0.25;
-    const WALL_BRICK_DEPTH = 0.5;
-    const WALL_NUM_BRICK_SEGMENTS_WIDE = 5;
-    const WALL_TOTAL_WIDTH = WALL_NUM_BRICK_SEGMENTS_WIDE * WALL_BRICK_WIDTH;
-    const WALL_NUM_ROWS_DEEP = Math.round(COURT_DEPTH / WALL_BRICK_DEPTH);
-    const BRICK_VISUAL_HEIGHT_Y = 0.2;
-    const RED_BRICK_CHANCE = 0.15;
-    const PURPLE_BRICK_COUNT = 5; // NEW
-    const BRICK_COLOR_GREEN = 0x00bb00;
-    const BRICK_COLOR_RED = 0xcc0000;
-    const BRICK_COLOR_PURPLE = 0x9900cc; // NEW
-
-    // Portals
-    const PORTAL_RADIUS = BALL_RADIUS * 1.8;
-    const PORTAL_COLOR_P1 = 0x0077ff;
-    const PORTAL_COLOR_P2 = 0xffaa00;
-    const PORTAL_TUBE_RADIUS_FACTOR = 0.20;
-    const PORTAL_COOLDOWN_MS = 750;
-    const PORTAL_SPEED_FACTOR = 0.3;
-    const PORTAL_PADDLE_SIDE_X_MARGIN = 0.2;
-    const P1_PORTAL_X_OUTER_BOUNDARY_CENTER = PADDLE1_INNER_EDGE_X + PORTAL_RADIUS + PORTAL_PADDLE_SIDE_X_MARGIN;
-    const P1_PORTAL_X_INNER_BOUNDARY_CENTER = -(WALL_TOTAL_WIDTH / 2) - PORTAL_RADIUS;
-    const P2_PORTAL_X_INNER_BOUNDARY_CENTER = (WALL_TOTAL_WIDTH / 2) + PORTAL_RADIUS;
-    const P2_PORTAL_X_OUTER_BOUNDARY_CENTER = PADDLE2_INNER_EDGE_X - PORTAL_RADIUS - PORTAL_PADDLE_SIDE_X_MARGIN;
-    const PORTAL_1_INITIAL_X = (P1_PORTAL_X_OUTER_BOUNDARY_CENTER + P1_PORTAL_X_INNER_BOUNDARY_CENTER) / 2;
-    const PORTAL_1_INITIAL_Y = 0;
-    const PORTAL_2_INITIAL_X = (P2_PORTAL_X_INNER_BOUNDARY_CENTER + P2_PORTAL_X_OUTER_BOUNDARY_CENTER) / 2;
-    const PORTAL_2_INITIAL_Y = 0;
-
-
-    // --- PongModel Class ---
-    class PongModel extends Multisynq.Model {
-      init() {
-        this.players = {};
-        this.paddleY = { 1: 0, 2: 0 };
-        this.ball = { x: 0, y: 0, vx: 0, vy: 0, lastPortalHit: null, portalCooldown: 0, lastTouchedBy: null }; // Added lastTouchedBy
-        this.score = { 1: 0, 2: 0 };
-        this.state = "waiting";
-        this.countdown = 5;
-        this.bricks = this.initBricks(); // Calls modified initBricks
-        this.lastStarter = 2;
-        this.servingPlayer = 1;
-        this.paddleShrinkTimer = { 1: 0, 2: 0 }; // NEW: Shrink timers
-
-        const portalBaseSpeed = C.ballSpeed * PORTAL_SPEED_FACTOR;
-        const portalMinYBoundary_center = -COURT_DEPTH / 2 + PORTAL_RADIUS;
-        const portalMaxYBoundary_center = COURT_DEPTH / 2 - PORTAL_RADIUS;
-        this.portals = { /* ... portal init unchanged ... */ }; // (Code omitted for brevity)
-
-        this.subscribe(this.sessionId, "view-join", this.onJoin);
-        this.subscribe(this.sessionId, "view-exit", this.onLeave);
-        this.subscribe(this.sessionId, "move", this.onMove);
-        this.future(MODEL_TICK_RATE_MS).step();
-      } // End init
-
-      initBricks() { // Modified for Purple Bricks
-        const totalBricks = WALL_NUM_ROWS_DEEP * WALL_NUM_BRICK_SEGMENTS_WIDE;
-        const bricks = [];
-        const brickIndices = Array.from(Array(totalBricks).keys()); // Array [0, 1, ..., N-1]
-
-        // Shuffle indices to pick random positions for purple bricks
-        for (let i = brickIndices.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [brickIndices[i], brickIndices[j]] = [brickIndices[j], brickIndices[i]]; // Swap
-        }
-        const purpleIndices = new Set(brickIndices.slice(0, PURPLE_BRICK_COUNT)); // Take first N indices
-
-        // Create bricks
-        let brickIndexCounter = 0;
-        const startModelX = -(WALL_TOTAL_WIDTH / 2) + (WALL_BRICK_WIDTH / 2);
-        const startModelY = (COURT_DEPTH / 2) - (WALL_BRICK_DEPTH / 2);
-        for (let r = 0; r < WALL_NUM_ROWS_DEEP; r++) {
-            const currentBrickRowModelY = startModelY - r * WALL_BRICK_DEPTH;
-            for (let c = 0; c < WALL_NUM_BRICK_SEGMENTS_WIDE; c++) {
-                let color = BRICK_COLOR_GREEN;
-                let hits = 1;
-                let type = "green"; // Add a type field
-
-                if (purpleIndices.has(brickIndexCounter)) { // Check if this index is purple
-                    color = BRICK_COLOR_PURPLE;
-                    hits = 1; // Purple breaks in 1 hit
-                    type = "purple";
-                } else {
-                    // Assign red/green for non-purple bricks
-                    const isRed = Math.random() < RED_BRICK_CHANCE;
-                    if (isRed) {
-                        color = BRICK_COLOR_RED;
-                        hits = 2;
-                        type = "red";
-                    }
-                }
-
-                bricks.push({
-                    x: startModelX + c * WALL_BRICK_WIDTH, y: currentBrickRowModelY,
-                    width: WALL_BRICK_WIDTH, depth: WALL_BRICK_DEPTH,
-                    color: color, hits: hits, type: type,
-                    initialColor: color, initialHits: hits, initialType: type // Store initial state for reset
-                });
-                brickIndexCounter++;
+        // --- PongModel Class ---
+        class PongModel extends Multisynq.Model {
+            init() {
+                this.players = {}; this.paddleY = { 1: 0, 2: 0 }; this.ball = { x: 0, y: 0, vx: 0, vy: 0, lastPortalHit: null, portalCooldown: 0, lastTouchedBy: null }; this.score = { 1: 0, 2: 0 }; this.state = "waiting"; this.countdown = 5;
+                this.bricks = this.initBricks(); this.lastStarter = 2; this.servingPlayer = 1; this.paddleShrinkTimer = { 1: 0, 2: 0 };
+                const portalBaseSpeed = C.ballSpeed * PORTAL_SPEED_FACTOR; const portalMinYBoundary_center = -COURT_DEPTH / 2 + PORTAL_RADIUS; const portalMaxYBoundary_center = COURT_DEPTH / 2 - PORTAL_RADIUS;
+                this.portals = { '1': { id: '1', x: PORTAL_1_INITIAL_X, y: PORTAL_1_INITIAL_Y, radius: PORTAL_RADIUS, color: PORTAL_COLOR_P1, vx: (Math.random() > 0.5 ? 1 : -1) * portalBaseSpeed * (Math.random() * 0.4 + 0.8), vy: (Math.random() > 0.5 ? 1 : -1) * portalBaseSpeed * (Math.random() * 0.4 + 0.8), minX_center: P1_PORTAL_X_OUTER_BOUNDARY_CENTER, maxX_center: P1_PORTAL_X_INNER_BOUNDARY_CENTER, minY_center: portalMinYBoundary_center, maxY_center: portalMaxYBoundary_center }, '2': { id: '2', x: PORTAL_2_INITIAL_X, y: PORTAL_2_INITIAL_Y, radius: PORTAL_RADIUS, color: PORTAL_COLOR_P2, vx: (Math.random() > 0.5 ? 1 : -1) * portalBaseSpeed * (Math.random() * 0.4 + 0.8), vy: (Math.random() > 0.5 ? 1 : -1) * portalBaseSpeed * (Math.random() * 0.4 + 0.8), minX_center: P2_PORTAL_X_INNER_BOUNDARY_CENTER, maxX_center: P2_PORTAL_X_OUTER_BOUNDARY_CENTER, minY_center: portalMinYBoundary_center, maxY_center: portalMaxYBoundary_center } };
+                this.subscribe(this.sessionId, "view-join", this.onJoin); this.subscribe(this.sessionId, "view-exit", this.onLeave); this.subscribe(this.sessionId, "move", this.onMove); this.future(MODEL_TICK_RATE_MS).step();
+                console.log("PongModel initialized."); // Log 4
             }
-        }
-        return bricks;
-      } // End initBricks
+            initBricks() { const bricks = []; const startModelX = -(WALL_TOTAL_WIDTH / 2) + (WALL_BRICK_WIDTH / 2); const startModelY = (COURT_DEPTH / 2) - (WALL_BRICK_DEPTH / 2); for (let r = 0; r < WALL_NUM_ROWS_DEEP; r++) { const currentBrickRowModelY = startModelY - r * WALL_BRICK_DEPTH; for (let c = 0; c < WALL_NUM_BRICK_SEGMENTS_WIDE; c++) { let color, hits, type; const rand = Math.random(); if (rand < PURPLE_BRICK_CHANCE) { color = BRICK_COLOR_PURPLE; hits = 1; type = "purple"; } else if (rand < PURPLE_BRICK_CHANCE + RED_BRICK_CHANCE) { color = BRICK_COLOR_RED; hits = 2; type = "red"; } else { color = BRICK_COLOR_GREEN; hits = 1; type = "green"; } bricks.push({ x: startModelX + c * WALL_BRICK_WIDTH, y: currentBrickRowModelY, width: WALL_BRICK_WIDTH, depth: WALL_BRICK_DEPTH, color: color, hits: hits, type: type, initialColor: color, initialHits: hits, initialType: type }); } } return bricks; }
+            resetPortals() { const portalBaseSpeed = C.ballSpeed * PORTAL_SPEED_FACTOR; this.portals['1'].x = PORTAL_1_INITIAL_X; this.portals['1'].y = PORTAL_1_INITIAL_Y; this.portals['1'].vx = (Math.random() > 0.5 ? 1 : -1) * portalBaseSpeed * (Math.random() * 0.4 + 0.8); this.portals['1'].vy = (Math.random() > 0.5 ? 1 : -1) * portalBaseSpeed * (Math.random() * 0.4 + 0.8); this.portals['2'].x = PORTAL_2_INITIAL_X; this.portals['2'].y = PORTAL_2_INITIAL_Y; this.portals['2'].vx = (Math.random() > 0.5 ? 1 : -1) * portalBaseSpeed * (Math.random() * 0.4 + 0.8); this.portals['2'].vy = (Math.random() > 0.5 ? 1 : -1) * portalBaseSpeed * (Math.random() * 0.4 + 0.8); }
+            onJoin({ viewId }) { if (Object.values(this.players).includes(viewId)) return; if (!this.players[1]) this.players[1] = viewId; else if (!this.players[2]) this.players[2] = viewId; if (Object.keys(this.players).length === 2 && this.state === "waiting") { this.startCountdown(); } this.publish("ui", "state", this.snapshot()); }
+            onLeave({ viewId }) { const player = this.getPlayerNumber(viewId); if (!player) return; delete this.players[player]; this.state = "disconnected"; this.ball.vx = 0; this.ball.vy = 0; this.publish("ui", "state", this.snapshot()); }
+            onMove({ viewId, dy }) { const player = this.getPlayerNumber(viewId); if (player && (this.state === "playing" || this.state === "serving_paused")) { this.paddleY[player] += dy; const paddleHalfLength = PADDLE_LENGTH_Z / 2; const maxPaddleModelY = (COURT_DEPTH / 2) - paddleHalfLength; this.paddleY[player] = Math.max(-maxPaddleModelY, Math.min(maxPaddleModelY, this.paddleY[player])); if (this.state === "serving_paused" && this.servingPlayer === player) { this.ball.y = this.paddleY[player]; } } }
+            getPlayerNumber(id) { return Object.entries(this.players).find(([, v]) => v === id)?.[0]; }
+            startCountdown() { this.countdown = 5; this.state = "countdown"; this.servingPlayer = this.lastStarter === 1 ? 2 : 1; this.future(1000).countdownTick(); }
+            countdownTick() { this.countdown--; if (this.countdown <= 0) { this.lastStarter = this.servingPlayer; this.prepareServe(); } else { this.future(1000).countdownTick(); } this.publish("ui", "state", this.snapshot()); }
+            prepareServe() { const ballStartX = this.servingPlayer === 1 ? PADDLE1_INNER_EDGE_X + BALL_RADIUS + 0.05 : PADDLE2_INNER_EDGE_X - BALL_RADIUS - 0.05; const ballStartY = this.paddleY[this.servingPlayer]; this.ball = { ...this.ball, x: ballStartX, y: ballStartY, vx: 0, vy: 0, portalCooldown: 0, lastPortalHit: null }; this.state = "serving_paused"; this.publish("ui", "state", this.snapshot()); this.future(1000).executeServe(); }
+            executeServe() { if (this.state !== "serving_paused") return; const dir = this.servingPlayer === 1 ? 1 : -1; this.ball.vx = dir * C.ballSpeed; this.ball.vy = 0; this.state = "playing"; this.publish("ui", "state", this.snapshot()); }
+            step() { if (this.state === "playing" || this.state === "serving_paused") { for(const pId in this.paddleShrinkTimer) { if(this.paddleShrinkTimer[pId] > 0) { this.paddleShrinkTimer[pId] -= MODEL_TICK_RATE_MS; if(this.paddleShrinkTimer[pId] < 0) this.paddleShrinkTimer[pId] = 0; } } const PORTAL_PADDLE_EPSILON = 0.01; for (const portalId in this.portals) { const portal = this.portals[portalId]; portal.x += portal.vx; portal.y += portal.vy; if (portal.y < portal.minY_center) { portal.y = portal.minY_center; portal.vy *= -1; } else if (portal.y > portal.maxY_center) { portal.y = portal.maxY_center; portal.vy *= -1; } if (portal.x < portal.minX_center) { portal.x = portal.minX_center; portal.vx *= -1; } else if (portal.x > portal.maxX_center) { portal.x = portal.maxX_center; portal.vx *= -1; } const portalHalfSize = portal.radius; const paddle1HalfThick = PADDLE_THICKNESS_X / 2; const paddle1HalfLen = PADDLE_LENGTH_Z / 2; const paddle1Y = this.paddleY[1]; const dx1 = portal.x - PADDLE1_MODEL_CENTER_X; const dy1 = portal.y - paddle1Y; const combinedHalfWidths1 = portalHalfSize + paddle1HalfThick; const combinedHalfDepths1 = portalHalfSize + paddle1HalfLen; if (Math.abs(dx1) < combinedHalfWidths1 && Math.abs(dy1) < combinedHalfDepths1) { const overlapX1 = combinedHalfWidths1 - Math.abs(dx1); const overlapY1 = combinedHalfDepths1 - Math.abs(dy1); if (overlapX1 < overlapY1) { portal.x = PADDLE1_MODEL_CENTER_X + Math.sign(dx1) * (combinedHalfWidths1 + PORTAL_PADDLE_EPSILON); portal.vx *= -1;} else { portal.y = paddle1Y + Math.sign(dy1) * (combinedHalfDepths1 + PORTAL_PADDLE_EPSILON); portal.vy *= -1; } } const paddle2HalfThick = PADDLE_THICKNESS_X / 2; const paddle2HalfLen = PADDLE_LENGTH_Z / 2; const paddle2Y = this.paddleY[2]; const dx2 = portal.x - PADDLE2_MODEL_CENTER_X; const dy2 = portal.y - paddle2Y; const combinedHalfWidths2 = portalHalfSize + paddle2HalfThick; const combinedHalfDepths2 = portalHalfSize + paddle2HalfLen; if (Math.abs(dx2) < combinedHalfWidths2 && Math.abs(dy2) < combinedHalfDepths2) { const overlapX2 = combinedHalfWidths2 - Math.abs(dx2); const overlapY2 = combinedHalfDepths2 - Math.abs(dy2); if (overlapX2 < overlapY2) { portal.x = PADDLE2_MODEL_CENTER_X + Math.sign(dx2) * (combinedHalfWidths2 + PORTAL_PADDLE_EPSILON); portal.vx *= -1; } else { portal.y = paddle2Y + Math.sign(dy2) * (combinedHalfDepths2 + PORTAL_PADDLE_EPSILON); portal.vy *= -1; } } } if (this.state === "playing") { if (this.ball.portalCooldown > 0) { this.ball.portalCooldown -= MODEL_TICK_RATE_MS; if (this.ball.portalCooldown <= 0) { this.ball.lastPortalHit = null; } } this.ball.x += this.ball.vx; this.ball.y += this.ball.vy; const courtHalfDepth = COURT_DEPTH / 2; if (this.ball.y + BALL_RADIUS > courtHalfDepth || this.ball.y - BALL_RADIUS < -courtHalfDepth) { this.ball.vy *= -1; this.ball.y = Math.max(-courtHalfDepth + BALL_RADIUS, Math.min(courtHalfDepth - BALL_RADIUS, this.ball.y)); } let justHitPaddle = null; const paddleLogicalHalfLength = PADDLE_LENGTH_Z / 2; if (this.ball.vx < 0 && this.ball.x - BALL_RADIUS < PADDLE1_INNER_EDGE_X && this.ball.x + BALL_RADIUS > PADDLE1_MODEL_CENTER_X - PADDLE_THICKNESS_X / 2 && Math.abs(this.ball.y - this.paddleY[1]) < (paddleLogicalHalfLength + BALL_RADIUS)) { this.ball.vx *= -1; this.ball.x = PADDLE1_INNER_EDGE_X + BALL_RADIUS + BRICK_COLLISION_EPSILON; this.ball.vy += (this.ball.y - this.paddleY[1]) * 0.15 * Math.abs(this.ball.vx) / C.ballSpeed; this.ball.vy = Math.max(-C.ballSpeed*2, Math.min(C.ballSpeed*2, this.ball.vy)); this.ball.lastTouchedBy = 1; justHitPaddle = 1; } else if (this.ball.vx > 0 && this.ball.x + BALL_RADIUS > PADDLE2_INNER_EDGE_X && this.ball.x - BALL_RADIUS < PADDLE2_MODEL_CENTER_X + PADDLE_THICKNESS_X / 2 && Math.abs(this.ball.y - this.paddleY[2]) < (paddleLogicalHalfLength + BALL_RADIUS)) { this.ball.vx *= -1; this.ball.x = PADDLE2_INNER_EDGE_X - BALL_RADIUS - BRICK_COLLISION_EPSILON; this.ball.vy += (this.ball.y - this.paddleY[2]) * 0.15 * Math.abs(this.ball.vx) / C.ballSpeed; this.ball.vy = Math.max(-C.ballSpeed*2, Math.min(C.ballSpeed*2, this.ball.vy)); this.ball.lastTouchedBy = 2; justHitPaddle = 2; } let hitBrickThisStep = false; const remainingBricks = []; for (const brick of this.bricks) { let currentBrickDestroyed = false; const brickHalfWidth = brick.width / 2; const brickHalfDepth = brick.depth / 2; const dx_brick = this.ball.x - brick.x; const dy_brick = this.ball.y - brick.y; const combinedHalfWidths = BALL_RADIUS + brickHalfWidth; const combinedHalfDepths = BALL_RADIUS + brickHalfDepth; if (Math.abs(dx_brick) < combinedHalfWidths && Math.abs(dy_brick) < combinedHalfDepths) { hitBrickThisStep = true; brick.hits--; if (brick.type === "purple") { let opponent = this.ball.lastTouchedBy === 1 ? 2 : 1; if (this.ball.lastTouchedBy === null) { opponent = brick.x < 0 ? 2 : 1; } this.paddleShrinkTimer[opponent] = PADDLE_SHRINK_DURATION_MS; } else if (brick.type === "red" && brick.hits === 1) { brick.color = BRICK_COLOR_GREEN; brick.type = "green"; } if (brick.hits <= 0) { currentBrickDestroyed = true; } const overlapX = combinedHalfWidths - Math.abs(dx_brick); const overlapY = combinedHalfDepths - Math.abs(dy_brick); if (overlapX < overlapY && overlapX > BRICK_COLLISION_EPSILON) { if (dx_brick > 0) this.ball.x = brick.x + brickHalfWidth + BALL_RADIUS + BRICK_COLLISION_EPSILON; else this.ball.x = brick.x - brickHalfWidth - BALL_RADIUS - BRICK_COLLISION_EPSILON; this.ball.vx *= -1; } else if (overlapY < overlapX && overlapY > BRICK_COLLISION_EPSILON) { if (dy_brick > 0) this.ball.y = brick.y + brickHalfDepth + BALL_RADIUS + BRICK_COLLISION_EPSILON; else this.ball.y = brick.y - brickHalfDepth - BALL_RADIUS - BRICK_COLLISION_EPSILON; this.ball.vy *= -1; } else { this.ball.x = brick.x + Math.sign(dx_brick) * (brickHalfWidth + BALL_RADIUS + BRICK_COLLISION_EPSILON); this.ball.y = brick.y + Math.sign(dy_brick) * (brickHalfDepth + BALL_RADIUS + BRICK_COLLISION_EPSILON); this.ball.vx *= -1; this.ball.vy *= -1; } justHitPaddle = null; } if (!currentBrickDestroyed) remainingBricks.push(brick); } this.bricks = remainingBricks; if (hitBrickThisStep) { this.ball.lastTouchedBy = null; } if (!hitBrickThisStep && !justHitPaddle && this.ball.portalCooldown <= 0) { for (const portalId in this.portals) { const portal = this.portals[portalId]; const dx_portal = this.ball.x - portal.x; const dy_portal = this.ball.y - portal.y; const distance = Math.sqrt(dx_portal * dx_portal + dy_portal * dy_portal); if (distance < (BALL_RADIUS + portal.radius)) { if (this.ball.lastPortalHit !== portal.id) { const otherPortalId = portal.id === '1' ? '2' : '1'; const otherPortal = this.portals[otherPortalId]; this.ball.x = otherPortal.x; this.ball.y = otherPortal.y; const velocityMagnitude = Math.sqrt(this.ball.vx * this.ball.vx + this.ball.vy * this.ball.vy); if (velocityMagnitude > 0) { const normVx = this.ball.vx / velocityMagnitude; const normVy = this.ball.vy / velocityMagnitude; this.ball.x += normVx * (otherPortal.radius + BALL_RADIUS + BRICK_COLLISION_EPSILON * 5); this.ball.y += normVy * (otherPortal.radius + BALL_RADIUS + BRICK_COLLISION_EPSILON * 5); } this.ball.lastPortalHit = otherPortalId; this.ball.portalCooldown = PORTAL_COOLDOWN_MS; break; } } } } const courtHalfWidth = COURT_WIDTH / 2; if (this.ball.x < -courtHalfWidth) { this.score[2]++; this.checkWin(2); } else if (this.ball.x > courtHalfWidth) { this.score[1]++; this.checkWin(1); } } } this.publish("ui", "state", this.snapshot()); this.future(MODEL_TICK_RATE_MS).step(); }
+             checkWin(scorer) { if (this.score[1] >= C.winScore || this.score[2] >= C.winScore) { const winner = this.score[1] >= C.winScore ? 1 : 2; this.state = `won${winner}`; this.score = { 1: 0, 2: 0 }; this.bricks = this.initBricks(); this.resetPortals(); this.paddleShrinkTimer = { 1: 0, 2: 0 }; this.future(5000).startCountdown(); } else { this.servingPlayer = scorer === 1 ? 2 : 1; this.lastStarter = this.servingPlayer; this.prepareServe(); } }
+             snapshot() { return { paddleY: this.paddleY, ball: { x: this.ball.x, y: this.ball.y }, score: this.score, state: this.state, countdown: this.countdown, bricks: this.bricks.map(b => ({ x: b.x, y: b.y, width: b.width, depth: b.depth, color: b.color, type: b.type })), portals: this.portals, paddleShrinkTimer: this.paddleShrinkTimer }; }
+        } // End of PongModel class
+        PongModel.register("PongModel");
+        console.log("PongModel class defined and registered."); // Log 5
 
-      resetPortals() { /* ... unchanged ... */ } // (Code omitted for brevity)
-
-      onJoin({ viewId }) { /* ... unchanged ... */ }
-      onLeave({ viewId }) { /* ... unchanged ... */ }
-      onMove({ viewId, dy }) { /* ... unchanged ... */ }
-      getPlayerNumber(id) { /* ... unchanged ... */ }
-      startCountdown() { /* ... unchanged ... */ }
-      countdownTick() { /* ... unchanged ... */ }
-      prepareServe() { /* ... unchanged ... */ }
-      executeServe() { /* ... unchanged ... */ }
-
-      step() {
-        if (this.state === "playing" || this.state === "serving_paused") {
-          // 1. Update Shrink Timers
-          for(const pId in this.paddleShrinkTimer) {
-            if(this.paddleShrinkTimer[pId] > 0) {
-                this.paddleShrinkTimer[pId] -= MODEL_TICK_RATE_MS;
-                if(this.paddleShrinkTimer[pId] < 0) this.paddleShrinkTimer[pId] = 0; // Clamp to zero
-            }
-          }
-
-          // 2. Portal Movement and Collisions (Boundary and Paddle)
-          // Using the version you confirmed was correct
-          const PORTAL_PADDLE_EPSILON = 0.01;
-          for (const portalId in this.portals) {
-            const portal = this.portals[portalId];
-            portal.x += portal.vx; portal.y += portal.vy;
-            // Y collision
-            if (portal.y < portal.minY_center) { portal.y = portal.minY_center; portal.vy *= -1; }
-             else if (portal.y > portal.maxY_center) { portal.y = portal.maxY_center; portal.vy *= -1; }
-            // X collision (Both boundaries)
-            if (portal.x < portal.minX_center) { portal.x = portal.minX_center; portal.vx *= -1; }
-             else if (portal.x > portal.maxX_center) { portal.x = portal.maxX_center; portal.vx *= -1; }
-            // Portal-Paddle Collision
-             const portalHalfSize = portal.radius;
-             const paddle1HalfThick = PADDLE_THICKNESS_X / 2; const paddle1HalfLen = PADDLE_LENGTH_Z / 2;
-             const paddle1Y = this.paddleY[1]; const dx1 = portal.x - PADDLE1_MODEL_CENTER_X; const dy1 = portal.y - paddle1Y;
-             const combinedHalfWidths1 = portalHalfSize + paddle1HalfThick; const combinedHalfDepths1 = portalHalfSize + paddle1HalfLen;
-             if (Math.abs(dx1) < combinedHalfWidths1 && Math.abs(dy1) < combinedHalfDepths1) {
-                 const overlapX1 = combinedHalfWidths1 - Math.abs(dx1); const overlapY1 = combinedHalfDepths1 - Math.abs(dy1);
-                 if (overlapX1 < overlapY1) { portal.x = PADDLE1_MODEL_CENTER_X + Math.sign(dx1) * (combinedHalfWidths1 + PORTAL_PADDLE_EPSILON); portal.vx *= -1;} else { portal.y = paddle1Y + Math.sign(dy1) * (combinedHalfDepths1 + PORTAL_PADDLE_EPSILON); portal.vy *= -1; }
-             }
-             const paddle2HalfThick = PADDLE_THICKNESS_X / 2; const paddle2HalfLen = PADDLE_LENGTH_Z / 2;
-             const paddle2Y = this.paddleY[2]; const dx2 = portal.x - PADDLE2_MODEL_CENTER_X; const dy2 = portal.y - paddle2Y;
-             const combinedHalfWidths2 = portalHalfSize + paddle2HalfThick; const combinedHalfDepths2 = portalHalfSize + paddle2HalfLen;
-             if (Math.abs(dx2) < combinedHalfWidths2 && Math.abs(dy2) < combinedHalfDepths2) {
-                 const overlapX2 = combinedHalfWidths2 - Math.abs(dx2); const overlapY2 = combinedHalfDepths2 - Math.abs(dy2);
-                 if (overlapX2 < overlapY2) { portal.x = PADDLE2_MODEL_CENTER_X + Math.sign(dx2) * (combinedHalfWidths2 + PORTAL_PADDLE_EPSILON); portal.vx *= -1; } else { portal.y = paddle2Y + Math.sign(dy2) * (combinedHalfDepths2 + PORTAL_PADDLE_EPSILON); portal.vy *= -1; }
-             }
-          } // End portal loop
-
-          // Only do ball physics and game logic if actually playing
-          if (this.state === "playing") {
-            // Ball Cooldown for Portal
-            if (this.ball.portalCooldown > 0) { /* ... unchanged ... */ }
-
-            // Ball Movement
-            this.ball.x += this.ball.vx; this.ball.y += this.ball.vy;
-
-            // Ball Wall Collision (Top/Bottom)
-            const courtHalfDepth = COURT_DEPTH / 2;
-            if (this.ball.y + BALL_RADIUS > courtHalfDepth || this.ball.y - BALL_RADIUS < -courtHalfDepth) { /* ... unchanged ... */ }
-
-            // Ball Paddle Collision (Added setting lastTouchedBy)
-            let justHitPaddle = null; // Track if paddle was hit this step
-            const paddleLogicalHalfLength = PADDLE_LENGTH_Z / 2;
-            if (this.ball.vx < 0 && this.ball.x - BALL_RADIUS < PADDLE1_INNER_EDGE_X && this.ball.x + BALL_RADIUS > PADDLE1_MODEL_CENTER_X - PADDLE_THICKNESS_X / 2 && Math.abs(this.ball.y - this.paddleY[1]) < (paddleLogicalHalfLength + BALL_RADIUS)) {
-              this.ball.vx *= -1; this.ball.x = PADDLE1_INNER_EDGE_X + BALL_RADIUS + BRICK_COLLISION_EPSILON;
-              this.ball.vy += (this.ball.y - this.paddleY[1]) * 0.15 * Math.abs(this.ball.vx) / C.ballSpeed;
-              this.ball.vy = Math.max(-C.ballSpeed*2, Math.min(C.ballSpeed*2, this.ball.vy));
-              this.ball.lastTouchedBy = 1; // Player 1 touched it
-              justHitPaddle = 1;
-            } else if (this.ball.vx > 0 && this.ball.x + BALL_RADIUS > PADDLE2_INNER_EDGE_X && this.ball.x - BALL_RADIUS < PADDLE2_MODEL_CENTER_X + PADDLE_THICKNESS_X / 2 && Math.abs(this.ball.y - this.paddleY[2]) < (paddleLogicalHalfLength + BALL_RADIUS)) {
-              this.ball.vx *= -1; this.ball.x = PADDLE2_INNER_EDGE_X - BALL_RADIUS - BRICK_COLLISION_EPSILON;
-              this.ball.vy += (this.ball.y - this.paddleY[2]) * 0.15 * Math.abs(this.ball.vx) / C.ballSpeed;
-              this.ball.vy = Math.max(-C.ballSpeed*2, Math.min(C.ballSpeed*2, this.ball.vy));
-              this.ball.lastTouchedBy = 2; // Player 2 touched it
-              justHitPaddle = 2;
+        // --- PongView Class ---
+        class PongView extends Multisynq.View {
+            constructor(model) {
+                super(model);
+                console.log("PongView constructor started."); // Log 6
+                this.model = model; this.overlay = document.getElementById("overlay"); this.scene = new THREE.Scene(); this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100); this.portalMeshes = {}; this.brickMap = new Map();
+                this.previousState = null; this.currentState = null; this.lastStateUpdateTime = 0; this.estimatedNextStateTime = 0; // For interpolation
+                this.camera.position.set(0, COURT_WIDTH * 0.5, COURT_DEPTH * 1.2); this.camera.lookAt(0, 0, 0);
+                try { this.renderer = new THREE.WebGLRenderer({ antialias: true }); this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; document.body.appendChild(this.renderer.domElement); console.log("Renderer initialized successfully."); } catch (e) { console.error("!!! CRITICAL ERROR INITIALIZING RENDERER !!!", e); this.renderer = null; if (this.overlay) { this.overlay.textContent = "Error: WebGL not supported/disabled."; this.overlay.className = 'small-text'; this.overlay.style.color = 'red';} return; }
+                window.addEventListener("resize", () => this.resize());
+                const ambient = new THREE.AmbientLight(0xffffff, 0.6); const directional = new THREE.DirectionalLight(0xffffff, 0.8); directional.position.set(COURT_WIDTH * 0.5, COURT_DEPTH * 1.5, COURT_DEPTH * 0.75); directional.castShadow = true; directional.shadow.mapSize.width = 1024; directional.shadow.mapSize.height = 1024; directional.shadow.camera.near = 0.5; directional.shadow.camera.far = COURT_DEPTH * 3; directional.shadow.camera.left = -COURT_WIDTH / 2 - 2; directional.shadow.camera.right = COURT_WIDTH / 2 + 2; directional.shadow.camera.top = COURT_DEPTH / 2 + 2; directional.shadow.camera.bottom = -COURT_DEPTH / 2 - 2; this.scene.add(ambient, directional);
+                const court = new THREE.Mesh(new THREE.PlaneGeometry(COURT_WIDTH, COURT_DEPTH), new THREE.MeshStandardMaterial({ color: 0x3d0f3d, side: THREE.DoubleSide, roughness: 0.9 })); court.rotation.x = -Math.PI / 2; court.receiveShadow = true; this.scene.add(court);
+                this.paddle1 = new THREE.Mesh(new THREE.BoxGeometry(PADDLE_THICKNESS_X, PADDLE_VISUAL_HEIGHT_Y, PADDLE_LENGTH_Z), new THREE.MeshStandardMaterial({ color: 0x0057cc, metalness: 0.4, roughness: 0.5 })); this.paddle2 = new THREE.Mesh(new THREE.BoxGeometry(PADDLE_THICKNESS_X, PADDLE_VISUAL_HEIGHT_Y, PADDLE_LENGTH_Z), new THREE.MeshStandardMaterial({ color: 0xff8800, metalness: 0.4, roughness: 0.5 })); this.paddle1.position.set(PADDLE1_MODEL_CENTER_X, PADDLE_VISUAL_HEIGHT_Y / 2, 0); this.paddle2.position.set(PADDLE2_MODEL_CENTER_X, PADDLE_VISUAL_HEIGHT_Y / 2, 0); this.paddle1.castShadow = true; this.paddle2.castShadow = true;
+                this.ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, 32, 16), new THREE.MeshStandardMaterial({ color: 0xf0f0f0, metalness: 0.5, roughness: 0.3, emissive: 0x111111 })); this.ball.castShadow = true;
+                this.scene.add(this.paddle1, this.paddle2, this.ball);
+                this.subscribe("ui", "state", this.handleStateUpdate); // For interpolation
+                this.publish(this.model.sessionId, "view-join", { viewId: this.viewId });
+                this.animate(); this.handleInput(); this.resize();
+                console.log("PongView constructor finished successfully."); // Log 7
             }
 
-            // Ball Brick Collision (Modified for Hits/Color/Shrink Effect)
-            let hitBrickThisStep = false;
-            const remainingBricks = [];
-            for (const brick of this.bricks) {
-                let currentBrickDestroyed = false;
-                const brickHalfWidth = brick.width / 2; const brickHalfDepth = brick.depth / 2;
-                const dx_brick = this.ball.x - brick.x; const dy_brick = this.ball.y - brick.y;
-                const combinedHalfWidths = BALL_RADIUS + brickHalfWidth; const combinedHalfDepths = BALL_RADIUS + brickHalfDepth;
-                if (Math.abs(dx_brick) < combinedHalfWidths && Math.abs(dy_brick) < combinedHalfDepths) {
-                    hitBrickThisStep = true;
-                    brick.hits--;
+            handleStateUpdate(state) { this.previousState = this.currentState; this.currentState = state; this.lastStateUpdateTime = performance.now(); this.estimatedNextStateTime = this.lastStateUpdateTime + MODEL_TICK_RATE_MS; if (!this.previousState) { this.previousState = this.currentState; } }
+            interpolateValue(prev, current, alpha) { return prev + (current - prev) * alpha; }
+            resize() { try { if (!this.renderer) return; this.renderer.setSize(window.innerWidth, window.innerHeight); this.camera.aspect = window.innerWidth / window.innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setPixelRatio(window.devicePixelRatio); } catch(e) { console.error("Error in resize:", e); } }
+            animate() { requestAnimationFrame(() => this.animate()); if (!this.renderer || !this.scene || !this.camera) { return; } const now = performance.now(); let alpha = 0; if (this.estimatedNextStateTime > this.lastStateUpdateTime) { alpha = Math.max(0, Math.min(1, (now - this.lastStateUpdateTime) / (this.estimatedNextStateTime - this.lastStateUpdateTime)));} if (this.currentState && this.previousState) { const prevState = this.previousState; const currState = this.currentState; this.paddle1.position.z = this.interpolateValue(prevState.paddleY[1], currState.paddleY[1], alpha); this.paddle2.position.z = this.interpolateValue(prevState.paddleY[2], currState.paddleY[2], alpha); if (currState.paddleShrinkTimer && currState.paddleShrinkTimer[1] !== undefined) { this.paddle1.scale.z = currState.paddleShrinkTimer[1] > 0 ? PADDLE_SHRINK_FACTOR : 1; } else { this.paddle1.scale.z = 1; } if (currState.paddleShrinkTimer && currState.paddleShrinkTimer[2] !== undefined) { this.paddle2.scale.z = currState.paddleShrinkTimer[2] > 0 ? PADDLE_SHRINK_FACTOR : 1; } else { this.paddle2.scale.z = 1; } this.ball.position.x = this.interpolateValue(prevState.ball.x, currState.ball.x, alpha); this.ball.position.z = this.interpolateValue(prevState.ball.y, currState.ball.y, alpha); this.ball.position.y = BALL_RADIUS; for (const portalId in currState.portals) { const prevPortal = prevState.portals[portalId]; const currPortal = currState.portals[portalId]; if (this.portalMeshes[portalId] && prevPortal && currPortal) { const displayX = this.interpolateValue(prevPortal.x, currPortal.x, alpha); const displayZ = this.interpolateValue(prevPortal.y, currPortal.y, alpha); this.portalMeshes[portalId].position.set(displayX, PADDLE_VISUAL_HEIGHT_Y / 2 + 0.01, displayZ); } else if (!this.portalMeshes[portalId] && currPortal) { const geometry = new THREE.TorusGeometry(currPortal.radius, currPortal.radius * PORTAL_TUBE_RADIUS_FACTOR, 16, 48); const material = new THREE.MeshStandardMaterial({ color: currPortal.color, emissive: currPortal.color, emissiveIntensity: 0.8, metalness: 0.2, roughness: 0.5, side: THREE.DoubleSide }); this.portalMeshes[portalId] = new THREE.Mesh(geometry, material); this.portalMeshes[portalId].rotation.x = Math.PI / 2; this.portalMeshes[portalId].castShadow = false; this.scene.add(this.portalMeshes[portalId]); this.portalMeshes[portalId].position.set(currPortal.x, PADDLE_VISUAL_HEIGHT_Y / 2 + 0.01, currPortal.y); } } const seenBrickKeys = new Set(); if (currState.bricks) { currState.bricks.forEach(brickData => { const key = `${brickData.x.toFixed(4)},${brickData.y.toFixed(4)}`; seenBrickKeys.add(key); let brickMesh = this.brickMap.get(key); if (!brickMesh) { brickMesh = new THREE.Mesh( new THREE.BoxGeometry(brickData.width, BRICK_VISUAL_HEIGHT_Y, brickData.depth), new THREE.MeshStandardMaterial({ color: brickData.color, metalness: 0.2, roughness: 0.7, emissive: brickData.color === BRICK_COLOR_RED ? 0x330000 : (brickData.color === BRICK_COLOR_PURPLE ? 0x220033 : 0x002200) }) ); brickMesh.position.set(brickData.x, BRICK_VISUAL_HEIGHT_Y / 2, brickData.y); brickMesh.castShadow = true; brickMesh.receiveShadow = true; this.scene.add(brickMesh); this.brickMap.set(key, brickMesh); } else { if (brickMesh.material.color.getHex() !== brickData.color) { brickMesh.material.color.setHex(brickData.color); brickMesh.material.emissive.setHex(brickData.color === BRICK_COLOR_RED ? 0x330000 : (brickData.color === BRICK_COLOR_PURPLE ? 0x220033 : 0x002200)); } } }); } for (const [key, mesh] of this.brickMap.entries()) { if (!seenBrickKeys.has(key)) { this.scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); this.brickMap.delete(key); } } this.overlay.className = ''; const state = currState; if (state.state === "waiting") { this.overlay.textContent = "Waiting for players..."; this.overlay.className = 'small-text'; } else if (state.state === "countdown") { this.overlay.textContent = `Game starts in ${state.countdown}`; } else if (state.state === "playing" || state.state === "serving_paused") { this.overlay.textContent = `${state.score[1]} : ${state.score[2]}`; } else if (state.state === "won1") {this.overlay.textContent = "Player 1 Wins!"; this.overlay.className = 'small-text';} else if (state.state === "won2") {this.overlay.textContent = "Player 2 Wins!"; this.overlay.className = 'small-text';} else if (state.state === "disconnected") {this.overlay.textContent = `Player left. Waiting...`; this.overlay.className = 'small-text';} } this.renderer.render(this.scene, this.camera); }
+            handleInput() { try { const keys = {}; window.addEventListener("keydown", e => { keys[e.code] = true; }); window.addEventListener("keyup", e => { keys[e.code] = false; }); const loop = () => { let dy = 0; if (keys["ArrowUp"] || keys["KeyW"]) dy -= C.paddleSpeed; if (keys["ArrowDown"] || keys["KeyS"]) dy += C.paddleSpeed; if (dy !== 0) this.publish(this.model.sessionId, "move", { viewId: this.viewId, dy }); requestAnimationFrame(loop); }; loop(); } catch(e) { console.error("Error in handleInput:", e); } }
+        } // End of PongView class
+        console.log("PongView class defined."); // Log 8
 
-                    // --- Special Brick Effects ---
-                    if (brick.type === "purple") {
-                        // Determine opponent
-                        let opponent = this.ball.lastTouchedBy === 1 ? 2 : 1;
-                        // Fallback if ball hasn't been touched (e.g., direct hit from serve)
-                        if (this.ball.lastTouchedBy === null) {
-                            opponent = brick.x < 0 ? 2 : 1; // Brick on left shrinks P2, brick on right shrinks P1
-                        }
-                        this.paddleShrinkTimer[opponent] = PADDLE_SHRINK_DURATION_MS; // Start shrink timer
-                    } else if (brick.type === "red" && brick.hits === 1) {
-                        brick.color = BRICK_COLOR_GREEN; // Change color
-                        brick.type = "green"; // Update type conceptually
-                    }
-                    // --- End Effects ---
-
-                    if (brick.hits <= 0) {
-                        currentBrickDestroyed = true; // Mark for removal
-                    }
-
-                    // Bounce logic (unchanged)
-                    /* ... bounce logic code ... */
-                    const overlapX = combinedHalfWidths - Math.abs(dx_brick); const overlapY = combinedHalfDepths - Math.abs(dy_brick);
-                    if (overlapX < overlapY && overlapX > BRICK_COLLISION_EPSILON) {
-                        if (dx_brick > 0) this.ball.x = brick.x + brickHalfWidth + BALL_RADIUS + BRICK_COLLISION_EPSILON; else this.ball.x = brick.x - brickHalfWidth - BALL_RADIUS - BRICK_COLLISION_EPSILON;
-                        this.ball.vx *= -1;
-                    } else if (overlapY < overlapX && overlapY > BRICK_COLLISION_EPSILON) {
-                        if (dy_brick > 0) this.ball.y = brick.y + brickHalfDepth + BALL_RADIUS + BRICK_COLLISION_EPSILON; else this.ball.y = brick.y - brickHalfDepth - BALL_RADIUS - BRICK_COLLISION_EPSILON;
-                        this.ball.vy *= -1;
-                    } else {
-                        this.ball.x = brick.x + Math.sign(dx_brick) * (brickHalfWidth + BALL_RADIUS + BRICK_COLLISION_EPSILON); this.ball.y = brick.y + Math.sign(dy_brick) * (brickHalfDepth + BALL_RADIUS + BRICK_COLLISION_EPSILON);
-                        this.ball.vx *= -1; this.ball.vy *= -1;
-                    }
-                    // If ball hit a brick, it definitely didn't just hit a paddle this exact step
-                    justHitPaddle = null;
-                }
-                if (!currentBrickDestroyed) remainingBricks.push(brick);
-            }
-            this.bricks = remainingBricks;
-
-             // Reset lastTouchedBy if ball hits a brick (required for purple logic)
-            if (hitBrickThisStep) {
-                 this.ball.lastTouchedBy = null;
-            }
-
-
-            // Ball Portal Teleportation (Unchanged)
-            if (!hitBrickThisStep && !justHitPaddle && this.ball.portalCooldown <= 0) { /* ... portal teleport logic ... */ }
-
-            // Scoring
-            const courtHalfWidth = COURT_WIDTH / 2;
-            if (this.ball.x < -courtHalfWidth) { this.score[2]++; this.checkWin(2); }
-            else if (this.ball.x > courtHalfWidth) { this.score[1]++; this.checkWin(1); }
-          } // end if (this.state === "playing")
-        } // end if (this.state === "playing" || this.state === "serving_paused")
-        this.publish("ui", "state", this.snapshot());
-        this.future(MODEL_TICK_RATE_MS).step();
-      } // End of step()
-
-      checkWin(scorer) { // Modified for pause and portal/shrink reset
-        if (this.score[1] >= C.winScore || this.score[2] >= C.winScore) {
-          const winner = this.score[1] >= C.winScore ? 1 : 2;
-          this.state = `won${winner}`; this.score = { 1: 0, 2: 0 };
-          this.bricks = this.initBricks(); // Re-initializes bricks
-          this.resetPortals(); // Reset portal positions/velocities
-          this.paddleShrinkTimer = { 1: 0, 2: 0 }; // Reset shrink timers
-          this.future(5000).startCountdown();
-        } else {
-          this.servingPlayer = scorer === 1 ? 2 : 1;
-          this.lastStarter = this.servingPlayer;
-          this.prepareServe();
-        }
-      } // End of checkWin()
-
-      snapshot() { // Modified to send shrink timer and brick type/color
-        return {
-          paddleY: this.paddleY,
-          ball: { x: this.ball.x, y: this.ball.y },
-          score: this.score, state: this.state, countdown: this.countdown,
-          // Send necessary brick info for rendering color/type
-          bricks: this.bricks.map(b => ({
-              x: b.x, y: b.y, width: b.width, depth: b.depth,
-              color: b.color, // Send current color
-              type: b.type   // Send type if needed for visuals
-          })),
-          portals: this.portals,
-          paddleShrinkTimer: this.paddleShrinkTimer // NEW: Send shrink status
-        };
-      } // End of snapshot()
-    } // End of PongModel class
-    PongModel.register("PongModel");
-
-    // --- PongView Class ---
-    class PongView extends Multisynq.View {
-        constructor(model) {
-            super(model);
-            this.model = model;
-            this.overlay = document.getElementById("overlay");
-            this.scene = new THREE.Scene();
-            this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
-            this.portalMeshes = {};
-            this.brickMap = new Map();
-            this.camera.position.set(0, COURT_WIDTH * 0.5, COURT_DEPTH * 1.2);
-            this.camera.lookAt(0, 0, 0);
-            this.renderer = new THREE.WebGLRenderer({ antialias: true });
-            this.renderer.shadowMap.enabled = true;
-            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            document.body.appendChild(this.renderer.domElement);
-            this.resize();
-            window.addEventListener("resize", () => this.resize());
-            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-            const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-            directional.position.set(COURT_WIDTH * 0.5, COURT_DEPTH * 1.5, COURT_DEPTH * 0.75);
-            directional.castShadow = true;
-            directional.shadow.mapSize.width = 1024; directional.shadow.mapSize.height = 1024;
-            directional.shadow.camera.near = 0.5; directional.shadow.camera.far = COURT_DEPTH * 3;
-            directional.shadow.camera.left = -COURT_WIDTH / 2 - 2; directional.shadow.camera.right = COURT_WIDTH / 2 + 2;
-            directional.shadow.camera.top = COURT_DEPTH / 2 + 2; directional.shadow.camera.bottom = -COURT_DEPTH / 2 - 2;
-            this.scene.add(ambient, directional);
-            const court = new THREE.Mesh(new THREE.PlaneGeometry(COURT_WIDTH, COURT_DEPTH), new THREE.MeshStandardMaterial({ color: 0x3d0f3d, side: THREE.DoubleSide, roughness: 0.9 }));
-            court.rotation.x = -Math.PI / 2; court.receiveShadow = true;
-            this.scene.add(court);
-            this.paddle1 = new THREE.Mesh(new THREE.BoxGeometry(PADDLE_THICKNESS_X, PADDLE_VISUAL_HEIGHT_Y, PADDLE_LENGTH_Z), new THREE.MeshStandardMaterial({ color: 0x0057cc, metalness: 0.4, roughness: 0.5 }));
-            this.paddle2 = new THREE.Mesh(new THREE.BoxGeometry(PADDLE_THICKNESS_X, PADDLE_VISUAL_HEIGHT_Y, PADDLE_LENGTH_Z), new THREE.MeshStandardMaterial({ color: 0xff8800, metalness: 0.4, roughness: 0.5 }));
-            this.paddle1.position.set(PADDLE1_MODEL_CENTER_X, PADDLE_VISUAL_HEIGHT_Y / 2, 0);
-            this.paddle2.position.set(PADDLE2_MODEL_CENTER_X, PADDLE_VISUAL_HEIGHT_Y / 2, 0);
-            this.paddle1.castShadow = true; this.paddle2.castShadow = true;
-            this.ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, 32, 16), new THREE.MeshStandardMaterial({ color: 0xf0f0f0, metalness: 0.5, roughness: 0.3, emissive: 0x111111 }));
-            this.ball.castShadow = true;
-            this.scene.add(this.paddle1, this.paddle2, this.ball);
-            this.subscribe("ui", "state", this.renderState);
-            this.publish(this.model.sessionId, "view-join", { viewId: this.viewId });
-            this.animate();
-            this.handleInput();
-        } // End constructor
-
-      resize() { /* ... unchanged ... */ }
-
-      renderState(state) { // Modified for paddle shrink and brick color
-        // Update paddles - Apply scaling based on shrink timer
-        this.paddle1.position.z = state.paddleY[1];
-        this.paddle1.scale.z = state.paddleShrinkTimer[1] > 0 ? PADDLE_SHRINK_FACTOR : 1; // Scale Z
-
-        this.paddle2.position.z = state.paddleY[2];
-        this.paddle2.scale.z = state.paddleShrinkTimer[2] > 0 ? PADDLE_SHRINK_FACTOR : 1; // Scale Z
-
-        // Update ball
-        this.ball.position.set(state.ball.x, BALL_RADIUS, state.ball.y);
-
-        // Update Portals
-        for (const portalId in state.portals) { /* ... unchanged ... */ } // (Code omitted)
-
-        // Update Bricks (Handle color changes)
-        const seenBrickKeys = new Set();
-        state.bricks.forEach(brickData => {
-          const key = `${brickData.x.toFixed(4)},${brickData.y.toFixed(4)}`;
-          seenBrickKeys.add(key);
-          let brickMesh = this.brickMap.get(key);
-          if (!brickMesh) {
-            brickMesh = new THREE.Mesh(
-              new THREE.BoxGeometry(brickData.width, BRICK_VISUAL_HEIGHT_Y, brickData.depth),
-              // Set initial color and emissive based on model data
-              new THREE.MeshStandardMaterial({
-                  color: brickData.color,
-                  metalness: 0.2, roughness: 0.7,
-                  emissive: brickData.color === BRICK_COLOR_RED ? 0x330000 : (brickData.color === BRICK_COLOR_PURPLE ? 0x220033 : 0x002200)
-                })
-            );
-            brickMesh.position.set(brickData.x, BRICK_VISUAL_HEIGHT_Y / 2, brickData.y);
-            brickMesh.castShadow = true; brickMesh.receiveShadow = true;
-            this.scene.add(brickMesh); this.brickMap.set(key, brickMesh);
-          } else {
-            // Update existing brick mesh color if needed
-            if (brickMesh.material.color.getHex() !== brickData.color) {
-                brickMesh.material.color.setHex(brickData.color);
-                // Update emissive to match new color state
-                brickMesh.material.emissive.setHex(brickData.color === BRICK_COLOR_RED ? 0x330000 : (brickData.color === BRICK_COLOR_PURPLE ? 0x220033 : 0x002200));
-            }
-          }
-        });
-        for (const [key, mesh] of this.brickMap.entries()) { // Remove old bricks
-          if (!seenBrickKeys.has(key)) { /* ... unchanged ... */ }
+        // --- Join Multisynq Session ---
+        try {
+            console.log("Joining Multisynq session..."); // Log 9
+            Multisynq.Session.join({
+                apiKey: "2atXt6dTbNaKKO83iB4tsYDfmpusH0C6veTYXjy7Om", // <-- REMEMBER TO REPLACE THIS!
+                appId: "com.sarcastichedgehog.pongout3d",
+                name: Multisynq.App.autoSession(),
+                password: Multisynq.App.autoPassword(),
+                model: PongModel,
+                view: PongView
+            });
+            console.log("Multisynq join call initiated."); // Log 10
+        } catch(e) {
+            console.error("Error initiating Multisynq join:", e);
         }
 
-        // Update overlay text
-        this.overlay.className = '';
-        if (state.state === "waiting") this.overlay.textContent = "Waiting for players...";
-        else if (state.state === "countdown") this.overlay.textContent = `Game starts in ${state.countdown}`;
-        else if (state.state === "playing" || state.state === "serving_paused") {
-             this.overlay.textContent = `${state.score[1]} : ${state.score[2]}`;
-        }
-        else if (state.state === "won1") {this.overlay.textContent = "Player 1 Wins!"; this.overlay.className = 'small-text';}
-        else if (state.state === "won2") {this.overlay.textContent = "Player 2 Wins!"; this.overlay.className = 'small-text';}
-        else if (state.state === "disconnected") {this.overlay.textContent = `Player left. Waiting...`; this.overlay.className = 'small-text';}
-      } // End renderState
-
-      animate() { /* ... unchanged ... */ }
-      handleInput() { /* ... unchanged ... */ }
-    } // End PongView class
-
-    // --- Join Multisynq Session ---
-    Multisynq.Session.join({
-      apiKey: "2atXt6dTbNaKKO83iB4tsYDfmpusH0C6veTYXjy7Om",
-      appId: "com.sarcastichedgehog.pongout3d",
-      name: Multisynq.App.autoSession(),
-      password: Multisynq.App.autoPassword(),
-      model: PongModel,
-      view: PongView
-    });
-
+    } catch(e) {
+        console.error("Error during script setup (constants or class definitions):", e);
+    }
+    console.log("Script block parsing finished."); // Log 11
   </script>
 </head>
 <body>
