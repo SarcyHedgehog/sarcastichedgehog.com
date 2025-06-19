@@ -6,12 +6,12 @@
     <title>Maze Tag 3D</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@multisynq/client@latest/bundled/multisynq-client.min.js"></script>
-    <script src="config.js"></script> 
+    <script src="config.js"></script>
     <script>
         if (!window.APP_CONFIG) {
             console.warn("config.js not found or APP_CONFIG not set. Using placeholder API Key and App ID.");
             window.APP_CONFIG = {
-                API_KEY: "234567_Paste_Your_Own_API_Key_Here_7654321", 
+                API_KEY: "234567_Paste_Your_Own_API_Key_Here_7654321",
                 APP_ID: "io.multisynq.mazetag.default"
             };
         }
@@ -37,19 +37,39 @@
             padding: 20px 30px; font-size: 24px; border-radius: 50%; width: 80px; height: 80px;
             display: flex; align-items: center; justify-content: center;
             touch-action: manipulation; -webkit-user-select: none; user-select: none;
-            transition: background-color 0.1s ease-out; 
+            transition: background-color 0.1s ease-out;
         }
-        .mobile-controls button:active, .mobile-controls button.keyboard-active { 
-            background-color: rgba(255, 255, 255, 0.5); 
+        .mobile-controls button:active, .mobile-controls button.keyboard-active {
+            background-color: rgba(255, 255, 255, 0.5);
         }
         .game-message {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background-color: rgba(0,0,0,0.7); color: white; padding: 20px; border-radius: 10px;
             font-size: 24px; text-align: center; z-index: 200; display: none;
         }
-         #croquet_dock { 
+        #croquet_dock { /* Multisynq Widget Dock */
             top: 10px !important; right: 10px !important; left: auto !important; bottom: auto !important; z-index: 9999 !important;
         }
+        #rotate-overlay { /* For mobile landscape enforcement */
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: rgba(0,0,0,0.9);
+            color: white;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 20px;
+            z-index: 10000; /* Above everything else */
+            font-family: sans-serif;
+        }
+        #rotate-overlay svg { /* Simple rotate icon */
+            width: 60px; height: 60px; margin-bottom: 20px;
+            fill: white;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -58,7 +78,7 @@
         <p>Score: <span id="scoreDisplay">0</span></p>
         <p>Game Time: <span id="gameTimeDisplay">0:00</span></p>
         <p>Status: <span id="statusDisplay">-</span></p>
-        <p id="versionDisplay">v0.67</p> 
+        <p id="versionDisplay">v0.70</p>
         <p id="lerpFactorDisplay">View LERP: 0.53</p>
     </div>
     <div class="mobile-controls">
@@ -68,8 +88,13 @@
     <div id="gameMessage" class="game-message">
         <div id="winnerChipsContainer" style="margin-bottom: 10px; display: flex; justify-content: center; align-items: center;">
         </div>
-        <p id="messageTextElement"></p> 
+        <p id="messageTextElement"></p>
         <p id="countdownText"></p>
+    </div>
+
+    <div id="rotate-overlay">
+        <svg viewBox="0 0 24 24"><path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" /></svg>
+        <p>Please rotate your device to Landscape mode.</p>
     </div>
 
     <script type="module">
@@ -78,50 +103,103 @@
         const API_KEY = window.APP_CONFIG?.API_KEY || "234567_Paste_Your_Own_API_Key_Here_7654321";
         const APP_ID = window.APP_CONFIG?.APP_ID || "io.multisynq.mazetag.default";
 
-        const C = Multisynq.Constants; 
+        const C = Multisynq.Constants;
         C.GRID_SIZE = 16; C.CELL_WIDTH = 5; C.WALL_HEIGHT = 4; C.WALL_THICKNESS = 0.5;
-        C.MS_PER_CELL = 400; 
-        C.IT_SPEED_MULTIPLIER = 1.2; 
+        C.MS_PER_CELL = 400;
+        C.IT_SPEED_MULTIPLIER = 1.2;
         C.CHALK_TRAIL_LENGTH = 10;
-        C.IMMUNITY_DURATION = 10 * 1000; 
-        C.GAME_ROUND_DURATION_MS = 4 * 60 * 1000; C.NEW_GAME_COUNTDOWN_MS = 30 * 1000; 
-        C.BLUE_CUBE_SPAWN_CHANCE = 0.2; 
-        C.MAX_BLUE_CUBES = 45; 
-        C.MODEL_TICK_RATE = 50; 
-        C.BALL_RADIUS = (C.CELL_WIDTH / 2) * 0.75; 
-        C.IMMUNITY_OPACITY = 0.2; 
+        C.IMMUNITY_DURATION = 10 * 1000;
+        C.GAME_ROUND_DURATION_MS = 4 * 60 * 1000; C.NEW_GAME_COUNTDOWN_MS = 30 * 1000;
+        C.BLUE_CUBE_SPAWN_CHANCE = 0.2;
+        C.MAX_BLUE_CUBES = 45;
+        C.MODEL_TICK_RATE = 50;
+        C.BALL_RADIUS = (C.CELL_WIDTH / 2) * 0.75;
+        C.IMMUNITY_OPACITY = 0.2;
 
         const PLAYER_COLORS = [0xffffff, 0xff0000, 0xffff00, 0x00ff00, 0x964B00, 0x0000ff, 0xffc0cb, 0x111111];
-        const DEFAULT_PLAYER_COLOR = 0xff0000; 
+        const DEFAULT_PLAYER_COLOR = 0xff0000;
 
         const WALL_NORTH = 1; const WALL_EAST = 2; const WALL_SOUTH = 4; const WALL_WEST = 8;
 
         const MAZE_DATA = [
-  13, 5, 5, 5, 5, 5, 5, 1, 5, 5, 1, 5, 5, 5, 3, 11,
-  9, 5, 5, 1, 5, 5, 3, 8, 5, 3, 10, 13, 1, 5, 2, 10,
-  10, 9, 3, 8, 5, 3, 10, 12, 7, 14, 10, 15, 10, 15, 8, 6,
-  10, 10, 8, 2, 13, 2, 12, 5, 5, 5, 4, 5, 4, 7, 12, 3,
-  10, 10, 14, 10, 9, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2,
-  8, 0, 5, 0, 4, 5, 5, 5, 5, 5, 3, 9, 1, 5, 3, 10,
-  10, 8, 3, 10, 9, 5, 5, 5, 5, 3, 10, 10, 10, 15, 10, 10,
-  10, 10, 10, 10, 10, 15, 15, 15, 15, 10, 10, 14, 10, 15, 10, 10,
-  10, 10, 10, 10, 12, 5, 1, 5, 5, 0, 4, 5, 0, 5, 4, 6,
-  10, 10, 12, 2, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 15, 15,
-  10, 12, 5, 0, 5, 5, 2, 15, 15, 10, 15, 15, 8, 5, 5, 3,
-  8, 5, 5, 2, 15, 15, 8, 5, 5, 2, 15, 15, 8, 5, 3, 10,
-  10, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 10, 10,
-  10, 15, 15, 8, 5, 5, 0, 5, 5, 0, 5, 5, 2, 15, 10, 10,
-  8, 5, 5, 2, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 14, 10,
-  14, 15, 15, 12, 5, 5, 4, 5, 5, 4, 5, 5, 4, 5, 5, 6
-];
+            13, 5, 5, 5, 5, 5, 5, 1, 5, 5, 1, 5, 5, 5, 3, 11, 9, 5, 5, 1, 5, 5, 3, 8, 5, 3, 10, 13, 1, 5, 2, 10, 10, 9, 3, 8, 5, 3, 10, 12, 7, 14, 10, 15, 10, 15, 8, 6, 10, 10, 8, 2, 13, 2, 12, 5, 5, 5, 4, 5, 4, 7, 12, 3, 10, 10, 14, 10, 9, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 8, 0, 5, 0, 4, 5, 5, 5, 5, 5, 3, 9, 1, 5, 3, 10, 10, 8, 3, 10, 9, 5, 5, 5, 5, 3, 10, 10, 10, 15, 10, 10, 10, 10, 10, 10, 10, 15, 15, 15, 15, 10, 10, 14, 10, 15, 10, 10, 10, 10, 10, 10, 12, 5, 1, 5, 5, 0, 4, 5, 0, 5, 4, 6, 10, 10, 12, 2, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 15, 15, 10, 12, 5, 0, 5, 5, 2, 15, 15, 10, 15, 15, 8, 5, 5, 3, 8, 5, 5, 2, 15, 15, 8, 5, 5, 2, 15, 15, 8, 5, 3, 10, 10, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 10, 10, 10, 15, 15, 8, 5, 5, 0, 5, 5, 0, 5, 5, 2, 15, 10, 10, 8, 5, 5, 2, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 14, 10, 14, 15, 15, 12, 5, 5, 4, 5, 5, 4, 5, 5, 4, 5, 5, 6
+        ];
+
+        // --- Screen Orientation and Fullscreen Logic ---
+        let isLockedToLandscape = false;
+        let currentActualOrientation = ''; // To store current actual orientation
+
+        function getActualScreenOrientation() {
+            if (screen.orientation && screen.orientation.type) {
+                return screen.orientation.type;
+            }
+            if (window.innerHeight > window.innerWidth) {
+                return 'portrait-primary';
+            } else {
+                return 'landscape-primary';
+            }
+        }
+
+        function checkAndDisplayRotateOverlay() {
+            const overlay = document.getElementById('rotate-overlay');
+            if (!overlay) return;
+
+            currentActualOrientation = getActualScreenOrientation();
+            if (currentActualOrientation.includes('portrait')) {
+                console.log("Device is in Portrait, showing overlay.");
+                overlay.style.display = 'flex';
+            } else {
+                console.log("Device is in Landscape, hiding overlay.");
+                overlay.style.display = 'none';
+            }
+        }
+
+        async function attemptLockLandscape() {
+            if (!screen.orientation || !screen.orientation.lock) {
+                console.warn('Screen Orientation API or lock() method not supported.');
+                isLockedToLandscape = false;
+                return false;
+            }
+            try {
+                await screen.orientation.lock('landscape');
+                console.log('Screen orientation lock to landscape attempted/successful.');
+                isLockedToLandscape = true;
+                return true;
+            } catch (error) {
+                console.error('Error attempting to lock screen to landscape:', error);
+                isLockedToLandscape = false;
+                return false;
+            }
+        }
+
+        async function requestFullscreenAndLockLandscape() {
+            let fullscreenEntered = false;
+            if (document.documentElement.requestFullscreen) {
+                try {
+                    console.log("Requesting fullscreen...");
+                    await document.documentElement.requestFullscreen();
+                    console.log("Entered fullscreen.");
+                    fullscreenEntered = true;
+                } catch (error) {
+                    console.error('Error requesting fullscreen:', error);
+                }
+            } else {
+                console.warn("Fullscreen API not supported.");
+            }
+
+            console.log("Now attempting to lock landscape.");
+            await attemptLockLandscape();
+            checkAndDisplayRotateOverlay(); // Check orientation after attempts
+        }
+
 
         class GameModel extends Multisynq.Model {
             init() {
-                this.players = new Map(); 
-                this.blueCubes = []; 
-                this.gameState = "waiting"; 
-                this.gameEndTime = 0; this.nextGameStartTime = 0; 
-                this.winnerViewIds = null; 
+                this.players = new Map();
+                this.blueCubes = [];
+                this.gameState = "waiting";
+                this.gameEndTime = 0; this.nextGameStartTime = 0;
+                this.winnerViewIds = null;
                 this.playerColorsInUse = new Array(PLAYER_COLORS.length).fill(false);
                 this.subscribe(this.sessionId, "view-join", this.viewJoined);
                 this.subscribe(this.sessionId, "view-exit", this.viewExited);
@@ -129,20 +207,20 @@
                 this.spawnInitialBlueCubes();
             }
 
-            viewJoined(payload) { 
+            viewJoined(payload) {
                 let viewId; let viewData = {};
-                if (typeof payload === 'string') { viewId = payload; } 
-                else if (payload && typeof payload.viewId === 'string') { viewId = payload.viewId; viewData = payload.viewData || {}; } 
+                if (typeof payload === 'string') { viewId = payload; }
+                else if (payload && typeof payload.viewId === 'string') { viewId = payload.viewId; viewData = payload.viewData || {}; }
                 else { console.error("[GameModel] viewJoined: UNEXPECTED payload:", payload); return; }
                 if (!viewId) { console.error("[GameModel] viewJoined: viewId undefined."); return; }
                 if (this.players.has(viewId)) {
                     console.log(`[GameModel] Player ${viewId} tried to join again.`);
-                    return; 
+                    return;
                 }
-                
+
                 let colorIndex = this.playerColorsInUse.indexOf(false);
-                if (colorIndex === -1) { 
-                    colorIndex = (this.players.size % (PLAYER_COLORS.length -1)) + 1; 
+                if (colorIndex === -1) {
+                    colorIndex = (this.players.size % (PLAYER_COLORS.length -1)) + 1;
                 }
                 const playerColor = PLAYER_COLORS[colorIndex] || DEFAULT_PLAYER_COLOR;
                 if (colorIndex >= 0 && colorIndex < PLAYER_COLORS.length) this.playerColorsInUse[colorIndex] = true;
@@ -159,15 +237,15 @@
                         this.startGame();
                     } else if (this.gameState === "gameover" && this.players.size >=2) {
                         this.startNewGameCountdown();
-                    } else if (this.players.size === 1 && this.gameState === "playing") { 
-                        this.endGame(viewId); 
+                    } else if (this.players.size === 1 && this.gameState === "playing") {
+                        this.endGame(viewId);
                     }
                 } catch (e) { console.error(`[GameModel] Error creating PlayerBallModel for ${viewId}:`, e); }
             }
 
-            viewExited(payload) { 
+            viewExited(payload) {
                 let viewId;
-                if (typeof payload === 'string') viewId = payload; 
+                if (typeof payload === 'string') viewId = payload;
                 else if (payload && typeof payload.viewId === 'string') viewId = payload.viewId;
                 else { console.error("[GameModel] viewExited: UNEXPECTED payload:", payload); return; }
 
@@ -181,11 +259,11 @@
                     player.destroy();
 
                     if (this.players.size < 2 && (this.gameState === "playing" || this.gameState === "countdown")) {
-                        if (this.players.size === 1) { 
-                            this.endGame(this.players.keys().next().value); 
-                        } else { 
-                            this.gameState = "waiting"; 
-                            this.winnerViewIds = null; 
+                        if (this.players.size === 1) {
+                            this.endGame(this.players.keys().next().value);
+                        } else {
+                            this.gameState = "waiting";
+                            this.winnerViewIds = null;
                             this.publish(this.id, "game-state-changed", { state: this.gameState });
                         }
                     }
@@ -194,12 +272,12 @@
                     }
                 }
             }
-            
+
             isCellValidForSpawn(x, y) {
                 if (x < 0 || x >= C.GRID_SIZE || y < 0 || y >= C.GRID_SIZE) return false;
                 const index = y * C.GRID_SIZE + x;
                 const wallInfo = MAZE_DATA[index];
-                if (wallInfo === undefined || wallInfo === 0 || wallInfo === 15) return false; 
+                if (wallInfo === undefined || wallInfo === 0 || wallInfo === 15) return false;
                 return true;
             }
 
@@ -212,7 +290,7 @@
                         return { x, y };
                     }
                 }
-                return { x: Math.floor(C.GRID_SIZE/2), y: Math.floor(C.GRID_SIZE/2) }; 
+                return { x: Math.floor(C.GRID_SIZE/2), y: Math.floor(C.GRID_SIZE/2) };
             }
 
             isCellOccupiedByPlayer(gridX, gridY) {
@@ -222,70 +300,70 @@
                 return false;
             }
 
-            startGame() { 
+            startGame() {
                 console.log("[MODEL.startGame] Starting game. Resetting player scores and states.");
                 this.gameState = "playing";
                 this.gameEndTime = this.now() + C.GAME_ROUND_DURATION_MS;
-                this.winnerViewIds = null; 
-                this.players.forEach((p, viewId) => { 
+                this.winnerViewIds = null;
+                this.players.forEach((p, viewId) => {
                     const oldScore = p.score;
-                    p.score = 0; 
-                    p.isIt = false; 
-                    p.isImmune = false; 
-                    p.resetPositionToSpawn(); 
+                    p.score = 0;
+                    p.isIt = false;
+                    p.isImmune = false;
+                    p.resetPositionToSpawn();
                     console.log(`[MODEL.startGame] Player ${viewId}: score reset from ${oldScore} to 0.`);
-                }); 
+                });
                 this.assignNewIt();
                 this.publish(this.id, "game-state-changed", { state: this.gameState, endTime: this.gameEndTime });
             }
 
-            endGame(winnerFromLeave = null) { 
+            endGame(winnerFromLeave = null) {
                 this.gameState = "gameover";
-                
+
                 let determinedWinnerViewIds = [];
-                if (winnerFromLeave) { 
+                if (winnerFromLeave) {
                     determinedWinnerViewIds = [winnerFromLeave];
-                } else if (this.players.size > 0) { 
-                    let maxScore = -1; 
+                } else if (this.players.size > 0) {
+                    let maxScore = -1;
                     this.players.forEach(p => {
                         if (p.score > maxScore) { maxScore = p.score; }
                     });
 
-                    if (maxScore === -1 && this.players.size > 0) { 
-                         maxScore = 0; 
+                    if (maxScore === -1 && this.players.size > 0) {
+                         maxScore = 0;
                     }
-                    if (maxScore > -1) { 
-                        this.players.forEach((p, pViewId) => { 
+                    if (maxScore > -1) {
+                        this.players.forEach((p, pViewId) => {
                             if (p.score === maxScore) {
                                 determinedWinnerViewIds.push(pViewId);
                             }
                         });
                     }
                 }
-                this.winnerViewIds = determinedWinnerViewIds.length > 0 ? determinedWinnerViewIds : null; 
+                this.winnerViewIds = determinedWinnerViewIds.length > 0 ? determinedWinnerViewIds : null;
                 console.log("[MODEL.endGame] Winner(s) determined:", this.winnerViewIds);
 
-                this.publish(this.id, "game-state-changed", { state: this.gameState, winners: this.winnerViewIds }); 
+                this.publish(this.id, "game-state-changed", { state: this.gameState, winners: this.winnerViewIds });
 
                 if(this.players.size >= 2) {
                     this.startNewGameCountdown();
-                } else { 
-                    this.gameState = "waiting"; 
+                } else {
+                    this.gameState = "waiting";
                     this.publish(this.id, "game-state-changed", { state: this.gameState });
                 }
             }
-            
-            startNewGameCountdown() { 
+
+            startNewGameCountdown() {
                 this.gameState = "countdown";
                 this.nextGameStartTime = this.now() + C.NEW_GAME_COUNTDOWN_MS;
-                this.publish(this.id, "game-state-changed", { 
-                    state: this.gameState, 
+                this.publish(this.id, "game-state-changed", {
+                    state: this.gameState,
                     nextGameTime: this.nextGameStartTime,
-                    previousWinners: this.winnerViewIds 
+                    previousWinners: this.winnerViewIds
                 });
             }
 
-            assignNewIt() { 
+            assignNewIt() {
                 if (this.players.size === 0) return;
                 const playerArray = Array.from(this.players.values());
                 playerArray.forEach(p => p.isIt = false);
@@ -295,82 +373,73 @@
             }
 
             tick() {
-                if (this.gameState === "playing") { 
-                    if (this.now() >= this.gameEndTime) this.endGame(); 
+                if (this.gameState === "playing") {
+                    if (this.now() >= this.gameEndTime) this.endGame();
                 } else if (this.gameState === "countdown") {
                     if (this.now() >= this.nextGameStartTime) {
                          if (this.players.size >= 2) this.startGame();
-                         else { 
-                             this.gameState = "waiting"; 
-                             this.winnerViewIds = null; 
+                         else {
+                             this.gameState = "waiting";
+                             this.winnerViewIds = null;
                              this.publish(this.id, "game-state-changed", { state: this.gameState });
                         }
                     }
                 }
 
                 this.players.forEach(player => {
-                    player.update(); 
+                    player.update();
                     this.players.forEach(otherPlayer => {
                         if (player.id !== otherPlayer.id && player.gridX === otherPlayer.gridX && player.gridY === otherPlayer.gridY) {
                             if (player.isIt && !otherPlayer.isImmune) {
                                 this.handleTag(player, otherPlayer);
-                            } else if (otherPlayer.isIt && !player.isImmune) { 
+                            } else if (otherPlayer.isIt && !player.isImmune) {
                                 this.handleTag(otherPlayer, player);
                             }
                         }
                     });
                     for (let i = this.blueCubes.length - 1; i >= 0; i--) {
                         const cube = this.blueCubes[i];
-                        if (this.gameState === "playing" && player.gridX === cube.x && player.gridY === cube.y) { 
+                        if (this.gameState === "playing" && player.gridX === cube.x && player.gridY === cube.y) {
                             player.score++;
                             this.publish(this.id, "score-updated", {viewId: player.viewId, score: player.score});
                             this.publish(this.id, "cube-collected", {cubeId: cube.id});
                             this.blueCubes.splice(i, 1);
-                            this.spawnBlueCube(); 
-                            break; 
+                            this.spawnBlueCube();
+                            break;
                         }
                     }
                 });
 
                 if (this.blueCubes.length < C.MAX_BLUE_CUBES && this.random() < C.BLUE_CUBE_SPAWN_CHANCE) {
-                    this.spawnBlueCube(); 
+                    this.spawnBlueCube();
                 }
                 this.future(C.MODEL_TICK_RATE).tick();
             }
 
-            handleTag(itPlayer, taggedPlayer) { 
+            handleTag(itPlayer, taggedPlayer) {
                 console.log(`[MODEL.handleTag] CALLED: It=${itPlayer.viewId} tagged ${taggedPlayer.viewId}. Time: ${this.now()}`);
-                console.log(`[MODEL.handleTag] BEFORE: ${itPlayer.viewId} isIt=${itPlayer.isIt}, score=${itPlayer.score}. ${taggedPlayer.viewId} isIt=${taggedPlayer.isIt}, score=${taggedPlayer.score}, isImmune=${taggedPlayer.isImmune}`);
-
                 const pointsToTransfer = Math.ceil(taggedPlayer.score / 2);
-                taggedPlayer.score -= pointsToTransfer; 
+                taggedPlayer.score -= pointsToTransfer;
                 itPlayer.score += pointsToTransfer;
-                
-                itPlayer.isIt = false; 
+                itPlayer.isIt = false;
                 taggedPlayer.isIt = true;
-                
-                itPlayer.isImmune = true; 
+                itPlayer.isImmune = true;
                 itPlayer.immunityEndTime = this.now() + C.IMMUNITY_DURATION;
-
-                console.log(`[MODEL.handleTag] AFTER: ${itPlayer.viewId} isIt=${itPlayer.isIt}, isImmune=${itPlayer.isImmune}, score=${itPlayer.score}. ${taggedPlayer.viewId} isIt=${taggedPlayer.isIt}, score=${taggedPlayer.score}`);
-
-                itPlayer.bounce(true); 
-                taggedPlayer.bounce(true, itPlayer.direction); 
-                
-                this.publish(this.id, "player-tagged", { 
+                itPlayer.bounce(true);
+                taggedPlayer.bounce(true, itPlayer.direction);
+                this.publish(this.id, "player-tagged", {
                     oldItViewId: itPlayer.viewId, newItViewId: taggedPlayer.viewId,
                     itPlayerScore: itPlayer.score, taggedPlayerScore: taggedPlayer.score
                 });
                 this.publish(this.id, "it-changed", { newItViewId: taggedPlayer.viewId, oldItViewId: itPlayer.viewId });
             }
 
-
-            getCellWallInfo(x, y) { 
+            getCellWallInfo(x, y) {
                 if (x < 0 || x >= C.GRID_SIZE || y < 0 || y >= C.GRID_SIZE) return 15;
                 const index = y * C.GRID_SIZE + x;
-                return MAZE_DATA[index] === undefined ? 15 : MAZE_DATA[index]; 
+                return MAZE_DATA[index] === undefined ? 15 : MAZE_DATA[index];
             }
-            
+
             spawnInitialBlueCubes() { for(let i=0; i < C.MAX_BLUE_CUBES; i++) this.spawnBlueCube(); }
 
             spawnBlueCube() {
@@ -381,11 +450,11 @@
                     newX = Math.floor(this.random() * C.GRID_SIZE);
                     newY = Math.floor(this.random() * C.GRID_SIZE);
                     attempts++;
-                    foundValidSpot = this.isCellValidForSpawn(newX, newY) && 
-                                   !this.isCellOccupiedByPlayer(newX, newY) && 
+                    foundValidSpot = this.isCellValidForSpawn(newX, newY) &&
+                                   !this.isCellOccupiedByPlayer(newX, newY) &&
                                    !this.isCellOccupiedByCube(newX, newY);
                 } while (attempts < 50 && !foundValidSpot);
-                
+
                 if (foundValidSpot) {
                     const cubeId = "cube_" + this.random().toString(36).substr(2, 9);
                     this.blueCubes.push({ x: newX, y: newY, id: cubeId });
@@ -394,53 +463,47 @@
             }
             isCellOccupiedByCube(gridX, gridY) { return this.blueCubes.some(cube => cube.x === gridX && cube.y === gridY); }
         }
-        GameModel.register("GameModel"); 
+        GameModel.register("GameModel");
 
         class PlayerBallModel extends Multisynq.Model {
-            init(options) { 
-                this.viewId = options.viewId; 
-                this.color = options.color; 
+            init(options) {
+                this.viewId = options.viewId;
+                this.color = options.color;
                 this.colorIndex = options.colorIndex;
-                this.initialSpawnX = options.startX; 
+                this.initialSpawnX = options.startX;
                 this.initialSpawnY = options.startY;
-                
-                this.currentSegmentStartTime = 0; 
+                this.currentSegmentStartTime = 0;
                 this.startOfSegmentGridX = this.initialSpawnX;
                 this.startOfSegmentGridY = this.initialSpawnY;
-
                 this.gridX = this.initialSpawnX;
                 this.gridY = this.initialSpawnY;
-                this.targetGridX = this.initialSpawnX; 
+                this.targetGridX = this.initialSpawnX;
                 this.targetGridY = this.initialSpawnY;
-
-                this.direction = 2; 
-                this.score = 0; 
-                this.isIt = false; 
-                this.isImmune = false; 
+                this.direction = 2;
+                this.score = 0;
+                this.isIt = false;
+                this.isImmune = false;
                 this.immunityEndTime = 0;
-                this.pendingTurn = null; 
-                this.chalkTrail = []; 
-                
+                this.pendingTurn = null;
+                this.chalkTrail = [];
                 this.subscribe(this.id, "control-turn", this.handleControlTurn);
-                this.resetPositionToSpawn(); 
+                this.resetPositionToSpawn();
             }
 
             resetPositionToSpawn() {
-                this.gridX = this.initialSpawnX; 
+                this.gridX = this.initialSpawnX;
                 this.gridY = this.initialSpawnY;
-                this.targetGridX = this.gridX; 
+                this.targetGridX = this.gridX;
                 this.targetGridY = this.gridY;
-                
-                this.startOfSegmentGridX = this.gridX; 
+                this.startOfSegmentGridX = this.gridX;
                 this.startOfSegmentGridY = this.gridY;
-                this.currentSegmentStartTime = this.now(); 
-
+                this.currentSegmentStartTime = this.now();
                 this.publish(this.id, "teleported", {gridX: this.gridX, gridY: this.gridY, direction: this.direction });
             }
 
-            handleControlTurn(turn) { 
+            handleControlTurn(turn) {
                 const previousPending = this.pendingTurn;
-                this.pendingTurn = turn; 
+                this.pendingTurn = turn;
                 console.log(`[${this.viewId}.handleControlTurn] Received turn: ${turn}. Prev pending: ${previousPending}, New pending: ${this.pendingTurn}. Time: ${this.now()}`);
             }
             get gameModel() { return this.wellKnownModel("modelRoot");}
@@ -448,252 +511,202 @@
             setTarget(targetX, targetY, newDirection) {
                 this.startOfSegmentGridX = this.gridX;
                 this.startOfSegmentGridY = this.gridY;
-
                 this.targetGridX = targetX;
                 this.targetGridY = targetY;
                 this.direction = newDirection;
-                
-                this.currentSegmentStartTime = this.now(); 
-
-                this.addChalkMark(this.gridX, this.gridY); 
+                this.currentSegmentStartTime = this.now();
+                this.addChalkMark(this.gridX, this.gridY);
                 this.publish(this.id, "target-set", {
-                    targetGridX: this.targetGridX, 
-                    targetGridY: this.targetGridY, 
-                    direction: this.direction, 
-                    oldGridX: this.startOfSegmentGridX, 
-                    oldGridY: this.startOfSegmentGridY  
+                    targetGridX: this.targetGridX,
+                    targetGridY: this.targetGridY,
+                    direction: this.direction,
+                    oldGridX: this.startOfSegmentGridX,
+                    oldGridY: this.startOfSegmentGridY
                 });
             }
 
             update() {
                 if (this.isImmune && this.now() >= this.immunityEndTime) {
-                    this.isImmune = false; 
-                    this.publish(this.viewId, "immunity-ended"); 
+                    this.isImmune = false;
+                    this.publish(this.viewId, "immunity-ended");
                 }
 
-                if (this.gridX !== this.targetGridX || this.gridY !== this.targetGridY) { // If MOVING towards a target
+                if (this.gridX !== this.targetGridX || this.gridY !== this.targetGridY) {
                     const elapsedTimeInSegment = this.now() - this.currentSegmentStartTime;
-                    
                     let timeToCompleteSegment = C.MS_PER_CELL;
-                    if (this.isIt) {
-                        timeToCompleteSegment /= C.IT_SPEED_MULTIPLIER;
-                    }
-
+                    if (this.isIt) { timeToCompleteSegment /= C.IT_SPEED_MULTIPLIER; }
                     let progress = Math.min(1.0, elapsedTimeInSegment / timeToCompleteSegment);
 
-                    if (progress >= 1.0) { // Player has logically ARRIVED at the target cell
-                        const oldGridX = this.gridX; 
-                        const oldGridY = this.gridY;
-                        const oldDirection = this.direction; 
-
+                    if (progress >= 1.0) {
                         this.gridX = this.targetGridX;
                         this.gridY = this.targetGridY;
-                        
-                        this.startOfSegmentGridX = this.gridX; 
+                        this.startOfSegmentGridX = this.gridX;
                         this.startOfSegmentGridY = this.gridY;
-                        
-                        this.publish(this.id, "moved", { 
-                            gridX: this.gridX, 
-                            gridY: this.gridY, 
-                            direction: this.direction 
+                        this.publish(this.id, "moved", {
+                            gridX: this.gridX,
+                            gridY: this.gridY,
+                            direction: this.direction
                         });
-                        
-                        // Decide next move from this new cell
-                        this.decideNextMove(); 
-                        
-                    } else { // Still moving towards target
+                        this.decideNextMove();
+                    } else {
                         this.publish(this.id, "moving", {
-                            currentGridX: this.startOfSegmentGridX, 
+                            currentGridX: this.startOfSegmentGridX,
                             currentGridY: this.startOfSegmentGridY,
-                            targetGridX: this.targetGridX, 
-                            targetGridY: this.targetGridY, 
-                            progress: progress, 
-                            direction: this.direction 
+                            targetGridX: this.targetGridX,
+                            targetGridY: this.targetGridY,
+                            progress: progress,
+                            direction: this.direction
                         });
                     }
-                } else { // Player is IDLE at a cell center (gridX/Y === targetGridX/Y)
+                } else {
                     this.decideNextMove();
                 }
             }
 
             decideNextMove() {
-                console.log(`[${this.viewId}.decideNextMove] At [${this.gridX},${this.gridY}], Dir: ${this.direction}. Current pendingTurn: ${this.pendingTurn}. Time: ${this.now()}`);
+                // console.log(`[${this.viewId}.decideNextMove] At [${this.gridX},${this.gridY}], Dir: ${this.direction}. Current pendingTurn: ${this.pendingTurn}. Time: ${this.now()}`);
                 const currentWallInfo = this.gameModel.getCellWallInfo(this.gridX, this.gridY);
-                let possibleExits = []; 
-
-                for (let i = 0; i < 4; i++) { 
+                let possibleExits = [];
+                for (let i = 0; i < 4; i++) {
                     if (!this.hasWallInDirection(currentWallInfo, i)) {
                         possibleExits.push({ dx: [0, 1, 0, -1][i], dy: [-1, 0, 1, 0][i], newDir: i });
                     }
                 }
 
                 let chosenMove = null;
-
-                if (this.pendingTurn && this.pendingTurn !== null) { 
-                    const intendedTurnType = this.pendingTurn; 
+                if (this.pendingTurn && this.pendingTurn !== null) {
+                    const intendedTurnType = this.pendingTurn;
                     const intendedTurnDir = intendedTurnType === "left" ? (this.direction + 3) % 4 : (this.direction + 1) % 4;
-                    console.log(`[${this.viewId}.decideNextMove] Processing pendingTurn: '${intendedTurnType}' to target dir ${intendedTurnDir}`);
-                    
                     const canMakeIntendedTurn = possibleExits.find(exit => exit.newDir === intendedTurnDir);
                     if (canMakeIntendedTurn) {
                         chosenMove = canMakeIntendedTurn;
-                        console.log(`[${this.viewId}.decideNextMove] Pending turn to dir ${intendedTurnDir} IS possible. ChosenMove set.`);
-                    } else {
-                        console.log(`[${this.viewId}.decideNextMove] Pending turn to dir ${intendedTurnDir} is BLOCKED. Will attempt default movement if no turn chosen.`);
                     }
                 }
-                
-                if (!chosenMove) { 
-                    if (possibleExits.length === 0) { 
-                        console.log(`[${this.viewId}.decideNextMove] No possible exits, bouncing.`);
-                        this.bounce(false); 
-                        return; 
-                    }
-                    
+
+                if (!chosenMove) {
+                    if (possibleExits.length === 0) { this.bounce(false); return; }
                     const nonReverseExits = possibleExits.filter(exit => exit.newDir !== (this.direction + 2) % 4);
                     if (nonReverseExits.length > 0) {
                         const forwardExit = nonReverseExits.find(exit => exit.newDir === this.direction);
-                        if (forwardExit) {
-                            chosenMove = forwardExit;
-                        } else {
-                            chosenMove = nonReverseExits[Math.floor(this.random() * nonReverseExits.length)];
-                        }
-                    } else if (possibleExits.length > 0) { 
-                        chosenMove = possibleExits[0]; 
-                    } else { 
-                        console.log(`[${this.viewId}.decideNextMove] All exits filtered after non-reverse, attempting bounce.`);
-                        this.bounce(false);
-                        return; 
-                    }
+                        if (forwardExit) { chosenMove = forwardExit; }
+                        else { chosenMove = nonReverseExits[Math.floor(this.random() * nonReverseExits.length)]; }
+                    } else if (possibleExits.length > 0) {
+                        chosenMove = possibleExits[0];
+                    } else { this.bounce(false); return; }
                 }
-                
 
                 if (chosenMove) {
-                    console.log(`[${this.viewId}.decideNextMove] Final chosenMove to dir ${chosenMove.newDir}. PendingTurn is still: ${this.pendingTurn}`);
-                    if (this.gridX + chosenMove.dx !== this.gridX || 
-                        this.gridY + chosenMove.dy !== this.gridY ||
-                        this.direction !== chosenMove.newDir) {
+                    if (this.gridX + chosenMove.dx !== this.gridX || this.gridY + chosenMove.dy !== this.gridY || this.direction !== chosenMove.newDir) {
                         this.setTarget(this.gridX + chosenMove.dx, this.gridY + chosenMove.dy, chosenMove.newDir);
                     } else {
-                         console.log(`[${this.viewId}.decideNextMove] Chosen move results in no change of cell or direction.`);
                          if(this.targetGridX !== this.gridX || this.targetGridY !== this.gridY) {
-                            this.setTarget(this.gridX, this.gridY, this.direction); 
+                            this.setTarget(this.gridX, this.gridY, this.direction);
                          }
                     }
-                } else { 
-                    console.log(`[${this.viewId}.decideNextMove] No chosenMove after ALL logic (should be rare), attempting bounce.`);
-                    this.bounce(false); 
-                }
+                } else { this.bounce(false); }
             }
-                       
+
             bounce(isPlayerCollision = false, otherPlayerNewDir = null) {
                 const currentWallInfo = this.gameModel.getCellWallInfo(this.gridX, this.gridY);
-                let possibleBounceDirs = [];
-                let newTargetX, newTargetY, chosenBounceDir = null; 
+                let possibleBounceDirs = []; let newTargetX, newTargetY, chosenBounceDir = null;
 
                 if (isPlayerCollision && otherPlayerNewDir !== null) {
                     const oppositeToOther = (otherPlayerNewDir + 2) % 4;
                     if (!this.hasWallInDirection(currentWallInfo, oppositeToOther)) {
                         chosenBounceDir = oppositeToOther;
-                        newTargetX = this.gridX + [0,1,0,-1][chosenBounceDir];
-                        newTargetY = this.gridY + [-1,0,1,0][chosenBounceDir];
+                        newTargetX = this.gridX + [0,1,0,-1][chosenBounceDir]; newTargetY = this.gridY + [-1,0,1,0][chosenBounceDir];
                         this.setTarget(newTargetX, newTargetY, chosenBounceDir);
-                        console.log(`[${this.viewId}.bounce] Forced opposite to other player's dir ${otherPlayerNewDir}. New dir: ${chosenBounceDir}`);
-                        if (isPlayerCollision) { 
-                           this.gridX = newTargetX;
-                           this.gridY = newTargetY;
-                           console.log(`[${this.viewId}.bounce] Immediately updated gridX/Y to ${this.gridX},${this.gridY} after player collision bounce.`);
-                        }
+                        if (isPlayerCollision) { this.gridX = newTargetX; this.gridY = newTargetY; }
                         return;
                     }
                 }
-
-                for (let i = 0; i < 4; i++) {
-                    if (!this.hasWallInDirection(currentWallInfo, i)) {
-                        possibleBounceDirs.push(i);
-                    }
-                }
+                for (let i = 0; i < 4; i++) { if (!this.hasWallInDirection(currentWallInfo, i)) { possibleBounceDirs.push(i); } }
 
                 if (isPlayerCollision) {
                     let filteredDirs = [...possibleBounceDirs];
                     if (otherPlayerNewDir !== null) {
                         filteredDirs = filteredDirs.filter(dir => dir !== otherPlayerNewDir);
-                         if (filteredDirs.length > 1) { 
-                             filteredDirs = filteredDirs.filter(dir => dir !== (otherPlayerNewDir + 2) % 4);
-                         }
+                         if (filteredDirs.length > 1) { filteredDirs = filteredDirs.filter(dir => dir !== (otherPlayerNewDir + 2) % 4); }
                     }
-                    if (filteredDirs.length > 1) {
-                         filteredDirs = filteredDirs.filter(dir => dir !== this.direction);
-                    }
-                    if (filteredDirs.length > 1) {
-                        filteredDirs = filteredDirs.filter(dir => dir !== (this.direction + 2) % 4);
-                    }
-                    if (filteredDirs.length > 0) possibleBounceDirs = filteredDirs; 
-                
-                } else { 
+                    if (filteredDirs.length > 1) { filteredDirs = filteredDirs.filter(dir => dir !== this.direction); }
+                    if (filteredDirs.length > 1) { filteredDirs = filteredDirs.filter(dir => dir !== (this.direction + 2) % 4); }
+                    if (filteredDirs.length > 0) possibleBounceDirs = filteredDirs;
+                } else {
                     const reverseDir = (this.direction + 2) % 4;
-                    if (possibleBounceDirs.includes(reverseDir)) {
-                        possibleBounceDirs = [reverseDir]; 
-                    }
+                    if (possibleBounceDirs.includes(reverseDir)) { possibleBounceDirs = [reverseDir]; }
                 }
-                
-                if (possibleBounceDirs.length > 0) {
-                    chosenBounceDir = possibleBounceDirs[Math.floor(this.random() * possibleBounceDirs.length)];
-                } else { 
-                    possibleBounceDirs = []; 
-                    for (let i = 0; i < 4; i++) { 
-                        if (!this.hasWallInDirection(currentWallInfo, i)) {
-                            possibleBounceDirs.push(i); 
-                        }
-                    }
-                    if(possibleBounceDirs.length > 0) {
-                       chosenBounceDir = possibleBounceDirs[Math.floor(this.random() * possibleBounceDirs.length)];
-                       console.log(`[${this.viewId}.bounce] Emergency bounce (after filters). Dir: ${chosenBounceDir}`);
-                    }
+
+                if (possibleBounceDirs.length > 0) { chosenBounceDir = possibleBounceDirs[Math.floor(this.random() * possibleBounceDirs.length)]; }
+                else {
+                    possibleBounceDirs = []; for (let i = 0; i < 4; i++) { if (!this.hasWallInDirection(currentWallInfo, i)) { possibleBounceDirs.push(i); } }
+                    if(possibleBounceDirs.length > 0) { chosenBounceDir = possibleBounceDirs[Math.floor(this.random() * possibleBounceDirs.length)]; }
                 }
 
                 if (chosenBounceDir !== null) {
-                    newTargetX = this.gridX + [0,1,0,-1][chosenBounceDir];
-                    newTargetY = this.gridY + [-1,0,1,0][chosenBounceDir];
-                    console.log(`[${this.viewId}.bounce] Chosen dir: ${chosenBounceDir}. (isPlayerCol: ${isPlayerCollision}, otherPlayerNewDir: ${otherPlayerNewDir}, prevOwnDir: ${this.direction}) Target: ${newTargetX},${newTargetY}`);
+                    newTargetX = this.gridX + [0,1,0,-1][chosenBounceDir]; newTargetY = this.gridY + [-1,0,1,0][chosenBounceDir];
                     this.setTarget(newTargetX, newTargetY, chosenBounceDir);
-                    if (isPlayerCollision) { 
-                        this.gridX = newTargetX;
-                        this.gridY = newTargetY;
-                        console.log(`[${this.viewId}.bounce] Immediately updated gridX/Y to ${this.gridX},${this.gridY} after player collision bounce (general case).`);
-                    }
+                    if (isPlayerCollision) { this.gridX = newTargetX; this.gridY = newTargetY; }
                 } else {
-                    const stuckDir = (this.direction + 2) % 4; 
-                    console.log(`[${this.viewId}.bounce] TRULY STUCK or no new move chosen. Setting target to current cell, dir ${stuckDir}`);
-                    this.setTarget(this.gridX, this.gridY, stuckDir); 
+                    this.setTarget(this.gridX, this.gridY, (this.direction + 2) % 4);
                 }
             }
 
-
-            hasWallInDirection(cellWallInfo, dir) { 
+            hasWallInDirection(cellWallInfo, dir) {
                 if (dir === 0 && (cellWallInfo & WALL_NORTH)) return true; if (dir === 1 && (cellWallInfo & WALL_EAST)) return true;
                 if (dir === 2 && (cellWallInfo & WALL_SOUTH)) return true; if (dir === 3 && (cellWallInfo & WALL_WEST)) return true;
-                return false; 
+                return false;
             }
 
-            addChalkMark(gridX, gridY) {  
-                this.chalkTrail.unshift({ gridX: gridX, gridY: gridY }); 
-                if (this.chalkTrail.length > C.CHALK_TRAIL_LENGTH) this.chalkTrail.pop(); 
-                this.publish(this.id, "chalk-update", {trail: this.chalkTrail.map(t=> ({...t})) }); 
+            addChalkMark(gridX, gridY) {
+                this.chalkTrail.unshift({ gridX: gridX, gridY: gridY });
+                if (this.chalkTrail.length > C.CHALK_TRAIL_LENGTH) this.chalkTrail.pop();
+                this.publish(this.id, "chalk-update", {trail: this.chalkTrail.map(t=> ({...t})) });
             }
         }
-        PlayerBallModel.register("PlayerBallModel"); 
+        PlayerBallModel.register("PlayerBallModel");
 
         class GameView extends Multisynq.View {
-            constructor(model) { 
-                super(model); 
-                this.gameModel = model; this.playerObjects = new Map(); 
-                this.blueCubeObjects = new Map(); this.chalkTrailObjects = new Map(); 
-                
-                this.viewLerpFactor = 0.53; 
-                this.currentCameraOffset = new THREE.Vector3(0, 4, 7); 
+            constructor(model) {
+                super(model);
+                this.gameModel = model; this.playerObjects = new Map();
+                this.blueCubeObjects = new Map(); this.chalkTrailObjects = new Map();
+                this.viewLerpFactor = 0.53;
+                this.currentCameraOffset = new THREE.Vector3(0, 4, 7);
 
-                this.initThree(); this.initControls(); this.createMazeMesh();
+                this.initThree();
+                this.initControls(); // Call initControls early
+
+                if (this.isMobileDevice()) {
+                    console.log("Mobile device detected. Setting up fullscreen and landscape lock.");
+                    checkAndDisplayRotateOverlay(); // Initial check
+
+                    if (screen.orientation) {
+                        screen.orientation.addEventListener('change', () => {
+                            console.log('Screen orientation changed to:', screen.orientation.type);
+                            currentActualOrientation = screen.orientation.type;
+                            if (isLockedToLandscape && !currentActualOrientation.includes('landscape')) {
+                                console.log("Orientation changed from landscape, attempting to re-lock.");
+                                attemptLockLandscape().then(() => checkAndDisplayRotateOverlay());
+                            } else {
+                                checkAndDisplayRotateOverlay();
+                            }
+                        });
+                    } else {
+                        window.addEventListener('resize', () => {
+                            checkAndDisplayRotateOverlay();
+                        });
+                    }
+
+                    const handleFirstInteraction = async () => {
+                        console.log("First user interaction on mobile, requesting fullscreen and landscape lock.");
+                        await requestFullscreenAndLockLandscape();
+                        // Listeners are {once: true} so they remove themselves
+                    };
+                    document.addEventListener('pointerdown', handleFirstInteraction, { capture: true, once: true });
+                    document.addEventListener('touchstart', handleFirstInteraction, { capture: true, once: true });
+                }
+
+                this.createMazeMesh();
                 this.subscribe(this.gameModel.id, "player-added", this.onPlayerAdded.bind(this));
                 this.subscribe(this.gameModel.id, "player-removed", this.onPlayerRemoved.bind(this));
                 this.subscribe(this.gameModel.id, "it-changed", this.onItChanged.bind(this));
@@ -702,42 +715,47 @@
                 this.subscribe(this.gameModel.id, "cube-spawned", this.onCubeSpawned.bind(this));
                 this.subscribe(this.gameModel.id, "cube-collected", this.onCubeCollected.bind(this));
                 this.subscribe(this.gameModel.id, "game-state-changed", this.onGameStateChanged.bind(this));
-                
-                this.gameModel.players.forEach(pModel => this.onPlayerAdded(pModel)); 
+
+                this.gameModel.players.forEach(pModel => this.onPlayerAdded(pModel));
                 this.gameModel.blueCubes.forEach(cModel => this.onCubeSpawned(cModel));
                 this.onGameStateChanged({state: this.gameModel.gameState, endTime: this.gameModel.gameEndTime, nextGameTime: this.gameModel.nextGameStartTime, winners: this.gameModel.winnerViewIds});
                 if (this.gameModel.gameState === "playing" || this.gameModel.gameState === "countdown" ) {
                      this.gameModel.players.forEach(pModel => {
                         if (pModel.isIt) this.onItChanged({ newItViewId: pModel.viewId });
-                        const playerViewObj = this.getPlayerObjectByViewId(pModel.viewId); 
-                        if (playerViewObj) playerViewObj.userData.pModel = pModel; 
-                        else this.onPlayerAdded(pModel); 
-                        this.subscribeToPlayerModelEvents(pModel); 
+                        const playerViewObj = this.getPlayerObjectByViewId(pModel.viewId);
+                        if (playerViewObj) playerViewObj.userData.pModel = pModel;
+                        else this.onPlayerAdded(pModel);
+                        this.subscribeToPlayerModelEvents(pModel);
                      });
                 }
-                this.updateLerpFactorDisplay(); 
-                Multisynq.App.makeWidgetDock();
+                this.updateLerpFactorDisplay();
+                // Multisynq.App.makeWidgetDock(); // Moved to global scope before Session.join
             }
 
-            initThree() { 
+            isMobileDevice() {
+                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            }
+
+            initThree() {
                 this.scene = new THREE.Scene();
-                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200); 
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
                 this.renderer = new THREE.WebGLRenderer({ antialias: true });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.setClearColor(0x333333);
                 this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 document.getElementById('gameContainer').appendChild(this.renderer.domElement);
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); this.scene.add(ambientLight); 
-                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); 
-                directionalLight.position.set(10, 20, 15); directionalLight.castShadow = true; 
-                directionalLight.shadow.mapSize.width = 1024; directionalLight.shadow.mapSize.height = 1024; 
-                directionalLight.shadow.camera.near = 0.5; directionalLight.shadow.camera.far = 50;  
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); this.scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                directionalLight.position.set(10, 20, 15); directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 1024; directionalLight.shadow.mapSize.height = 1024;
+                directionalLight.shadow.camera.near = 0.5; directionalLight.shadow.camera.far = 50;
                 directionalLight.shadow.camera.left = -30; directionalLight.shadow.camera.right = 30;
                 directionalLight.shadow.camera.top = 30; directionalLight.shadow.camera.bottom = -30;
                 this.scene.add(directionalLight);
                 window.addEventListener('resize', () => {
                     this.camera.aspect = window.innerWidth / window.innerHeight; this.camera.updateProjectionMatrix();
                     this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    if (this.isMobileDevice()) checkAndDisplayRotateOverlay(); // Re-check on resize
                 }, false);
             }
 
@@ -745,91 +763,55 @@
                 document.getElementById('lerpFactorDisplay').textContent = `View LERP: ${this.viewLerpFactor.toFixed(2)}`;
             }
 
-            initControls() {  
+            initControls() {
                 const btnLeft = document.getElementById('btnLeft');
                 const btnRight = document.getElementById('btnRight');
+                const onScreenButtonInteractionEnd = () => this.publishToMyPlayer(null);
 
-                // This function will be called to signal the end of a turn intention
-                // for on-screen button interactions (pointer up OR pointer leave).
-                const onScreenButtonInteractionEnd = () => {
-                    this.publishToMyPlayer(null);
-                };
-
-                // Pointerdown for on-screen buttons (touch or mouse)
-                btnLeft.addEventListener('pointerdown', (e) => {
-                    e.preventDefault(); // Prevents unwanted default browser actions like text selection or context menu.
-                    this.publishToMyPlayer("left");
-                });
-                btnRight.addEventListener('pointerdown', (e) => {
-                    e.preventDefault(); // Prevents unwanted default browser actions
-                    this.publishToMyPlayer("right");
-                });
-                
-                // Pointerup for on-screen buttons (if finger/mouse lifts up while ON the button)
+                btnLeft.addEventListener('pointerdown', (e) => { e.preventDefault(); this.publishToMyPlayer("left"); });
+                btnRight.addEventListener('pointerdown', (e) => { e.preventDefault(); this.publishToMyPlayer("right"); });
                 btnLeft.addEventListener('pointerup', onScreenButtonInteractionEnd);
                 btnRight.addEventListener('pointerup', onScreenButtonInteractionEnd);
-
-                // Pointerleave for on-screen buttons (if finger/mouse slides OFF the button while still pressed)
                 btnLeft.addEventListener('pointerleave', onScreenButtonInteractionEnd);
                 btnRight.addEventListener('pointerleave', onScreenButtonInteractionEnd);
 
-                // Keyboard controls
                 window.addEventListener('keydown', (event) => {
-                    if (event.repeat) return; 
-                    if (event.key === 'ArrowLeft') {
-                        this.publishToMyPlayer("left");
-                        btnLeft.classList.add('keyboard-active');
-                    } else if (event.key === 'ArrowRight') {
-                        this.publishToMyPlayer("right");
-                        btnRight.classList.add('keyboard-active');
-                    } else if (event.key.toLowerCase() === 'q') { 
-                        this.viewLerpFactor = Math.min(0.95, this.viewLerpFactor + 0.01); 
-                        this.updateLerpFactorDisplay();
-                    } else if (event.key.toLowerCase() === 'a') { 
-                        this.viewLerpFactor = Math.max(0.05, this.viewLerpFactor - 0.01); 
-                        this.updateLerpFactorDisplay();
-                    }
+                    if (event.repeat) return;
+                    if (event.key === 'ArrowLeft') { this.publishToMyPlayer("left"); btnLeft.classList.add('keyboard-active'); }
+                    else if (event.key === 'ArrowRight') { this.publishToMyPlayer("right"); btnRight.classList.add('keyboard-active'); }
+                    else if (event.key.toLowerCase() === 'q') { this.viewLerpFactor = Math.min(0.95, this.viewLerpFactor + 0.01); this.updateLerpFactorDisplay(); }
+                    else if (event.key.toLowerCase() === 'a') { this.viewLerpFactor = Math.max(0.05, this.viewLerpFactor - 0.01); this.updateLerpFactorDisplay(); }
                 });
-
-                 window.addEventListener('keyup', (event) => { 
-                    if (event.key === 'ArrowLeft') {
-                        // This keyup corresponds to the "left" turn intention.
-                        // Publishing null effectively cancels any pending turn from this key.
-                        this.publishToMyPlayer(null);
-                        btnLeft.classList.remove('keyboard-active');
-                    } else if (event.key === 'ArrowRight') {
-                        // This keyup corresponds to the "right" turn intention.
-                        // Publishing null effectively cancels any pending turn from this key.
-                        this.publishToMyPlayer(null);
-                        btnRight.classList.remove('keyboard-active');
-                    }
+                 window.addEventListener('keyup', (event) => {
+                    if (event.key === 'ArrowLeft') { this.publishToMyPlayer(null); btnLeft.classList.remove('keyboard-active'); }
+                    else if (event.key === 'ArrowRight') { this.publishToMyPlayer(null); btnRight.classList.remove('keyboard-active'); }
                 });
             }
-            
-            publishToMyPlayer(turn) { 
+
+            publishToMyPlayer(turn) {
                 const myPlayerModel = this.gameModel.players.get(this.viewId);
-                if (myPlayerModel && myPlayerModel.id) { 
+                if (myPlayerModel && myPlayerModel.id) {
                     this.publish(myPlayerModel.id, "control-turn", turn);
                 }
             }
 
-            gridToWorld(gridX, gridY, yOffset = C.BALL_RADIUS) { 
+            gridToWorld(gridX, gridY, yOffset = C.BALL_RADIUS) {
                 return new THREE.Vector3(
                     (gridX - C.GRID_SIZE / 2 + 0.5) * C.CELL_WIDTH, yOffset, (gridY - C.GRID_SIZE / 2 + 0.5) * C.CELL_WIDTH
                 );
             }
-            
-            createMazeMesh() { 
-                const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x964B00, roughness: 0.8, metalness: 0.2 }); 
-                const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.9 }); 
+
+            createMazeMesh() {
+                const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x964B00, roughness: 0.8, metalness: 0.2 });
+                const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.9 });
                 const floorGeom = new THREE.PlaneGeometry(C.GRID_SIZE * C.CELL_WIDTH, C.GRID_SIZE * C.CELL_WIDTH);
                 const floorMesh = new THREE.Mesh(floorGeom, floorMaterial); floorMesh.rotation.x = -Math.PI / 2; floorMesh.receiveShadow = true; this.scene.add(floorMesh);
-                const wallGeomX = new THREE.BoxGeometry(C.CELL_WIDTH + C.WALL_THICKNESS, C.WALL_HEIGHT, C.WALL_THICKNESS); 
-                const wallGeomZ = new THREE.BoxGeometry(C.WALL_THICKNESS, C.WALL_HEIGHT, C.CELL_WIDTH + C.WALL_THICKNESS); 
+                const wallGeomX = new THREE.BoxGeometry(C.CELL_WIDTH + C.WALL_THICKNESS, C.WALL_HEIGHT, C.WALL_THICKNESS);
+                const wallGeomZ = new THREE.BoxGeometry(C.WALL_THICKNESS, C.WALL_HEIGHT, C.CELL_WIDTH + C.WALL_THICKNESS);
                 for (let y = 0; y < C.GRID_SIZE; y++) {
                     for (let x = 0; x < C.GRID_SIZE; x++) {
-                        const cellIndex = y * C.GRID_SIZE + x; const wallInfo = MAZE_DATA[cellIndex] === undefined ? 15 : MAZE_DATA[cellIndex]; 
-                        if(wallInfo === 0 && MAZE_DATA[cellIndex] !== undefined) continue; 
+                        const cellIndex = y * C.GRID_SIZE + x; const wallInfo = MAZE_DATA[cellIndex] === undefined ? 15 : MAZE_DATA[cellIndex];
+                        if(wallInfo === 0 && MAZE_DATA[cellIndex] !== undefined) continue;
                         const cellCenterX = (x - C.GRID_SIZE / 2 + 0.5) * C.CELL_WIDTH; const cellCenterZ = (y - C.GRID_SIZE / 2 + 0.5) * C.CELL_WIDTH;
                         if (wallInfo & WALL_NORTH) { const wall = new THREE.Mesh(wallGeomX, wallMaterial); wall.position.set(cellCenterX, C.WALL_HEIGHT / 2, cellCenterZ - C.CELL_WIDTH / 2); wall.castShadow = true; wall.receiveShadow = true; this.scene.add(wall); }
                         if (wallInfo & WALL_EAST) { const wall = new THREE.Mesh(wallGeomZ, wallMaterial); wall.position.set(cellCenterX + C.CELL_WIDTH / 2, C.WALL_HEIGHT / 2, cellCenterZ); wall.castShadow = true; wall.receiveShadow = true; this.scene.add(wall); }
@@ -838,411 +820,264 @@
                     }
                 }
             }
-            
-            onPlayerAdded(playerData) { 
+
+            onPlayerAdded(playerData) {
                 let pModelInstance; let modelId;
                 if (playerData instanceof PlayerBallModel) { pModelInstance = playerData; modelId = pModelInstance.id; }
                 else { pModelInstance = this.gameModel.players.get(playerData.viewId); modelId = playerData.id; }
                 if (!pModelInstance || this.playerObjects.has(modelId)) return;
 
-                const geometry = new THREE.SphereGeometry(C.BALL_RADIUS, 32, 16); 
-                const material = new THREE.MeshStandardMaterial({ 
-                    color: pModelInstance.color, 
-                    roughness: 0.5, 
-                    metalness: 0.1,
-                    transparent: true, 
-                    opacity: 1.0       
-                });
-                const playerMesh = new THREE.Mesh(geometry, material); playerMesh.castShadow = true; 
+                const geometry = new THREE.SphereGeometry(C.BALL_RADIUS, 32, 16);
+                const material = new THREE.MeshStandardMaterial({ color: pModelInstance.color, roughness: 0.5, metalness: 0.1, transparent: true, opacity: 1.0 });
+                const playerMesh = new THREE.Mesh(geometry, material); playerMesh.castShadow = true;
                 const playerGroup = new THREE.Group(); playerGroup.add(playerMesh);
-                
                 const initialWorldPos = this.gridToWorld(pModelInstance.gridX, pModelInstance.gridY);
                 playerGroup.position.copy(initialWorldPos);
-                
                 const initialQuaternion = new THREE.Quaternion();
                 initialQuaternion.setFromAxisAngle(new THREE.Vector3(0,1,0), this.directionToAngle(pModelInstance.direction));
                 playerGroup.quaternion.copy(initialQuaternion);
-
-                playerGroup.userData = { 
-                    modelId: modelId, viewId: pModelInstance.viewId, pModel: pModelInstance, 
-                    visualLerpStartWorldPos: initialWorldPos.clone(),
-                    visualLerpEndWorldPos: initialWorldPos.clone(), 
-                    visualLerpStartQuaternion: initialQuaternion.clone(),
-                    visualTargetQuaternion: initialQuaternion.clone(), 
-                    animationNextVisualPosition: initialWorldPos.clone(), 
-                    animationNextVisualQuaternion: initialQuaternion.clone(), 
-                    currentGridX: pModelInstance.gridX, 
-                    currentGridY: pModelInstance.gridY 
+                playerGroup.userData = {
+                    modelId: modelId, viewId: pModelInstance.viewId, pModel: pModelInstance,
+                    visualLerpStartWorldPos: initialWorldPos.clone(), visualLerpEndWorldPos: initialWorldPos.clone(),
+                    visualLerpStartQuaternion: initialQuaternion.clone(), visualTargetQuaternion: initialQuaternion.clone(),
+                    animationNextVisualPosition: initialWorldPos.clone(), animationNextVisualQuaternion: initialQuaternion.clone(),
+                    currentGridX: pModelInstance.gridX, currentGridY: pModelInstance.gridY
                 };
-                this.playerObjects.set(modelId, playerGroup); 
+                this.playerObjects.set(modelId, playerGroup);
                 this.scene.add(playerGroup);
                 this.subscribeToPlayerModelEvents(pModelInstance);
-                this.updatePlayerVisualState(pModelInstance.viewId); 
+                this.updatePlayerVisualState(pModelInstance.viewId);
             }
-            
+
             subscribeToPlayerModelEvents(playerModel) {
-                if(!playerModel || !playerModel.id) return; 
-                
-                this.unsubscribe(playerModel.id, "target-set"); 
-                this.unsubscribe(playerModel.id, "moved"); 
-                this.unsubscribe(playerModel.id, "moving"); 
-                this.unsubscribe(playerModel.id, "chalk-update");
-                this.unsubscribe(playerModel.viewId, "immunity-ended"); 
-                this.unsubscribe(playerModel.id, "teleported");
+                if(!playerModel || !playerModel.id) return;
+                this.unsubscribe(playerModel.id, "target-set"); this.unsubscribe(playerModel.id, "moved");
+                this.unsubscribe(playerModel.id, "moving"); this.unsubscribe(playerModel.id, "chalk-update");
+                this.unsubscribe(playerModel.viewId, "immunity-ended"); this.unsubscribe(playerModel.id, "teleported");
 
                 this.subscribe(playerModel.id, "target-set", (data) => this.handlePlayerTargetSet(playerModel.viewId, data));
                 this.subscribe(playerModel.id, "moved", (data) => this.handlePlayerLogicalMoveComplete(playerModel.viewId, data));
                 this.subscribe(playerModel.id, {event: "moving", handling: "oncePerFrame"}, (data) => this.handlePlayerVisualProgress(playerModel.viewId, data));
-                
                 this.subscribe(playerModel.id, "chalk-update", (data) => this.updateChalkTrail(playerModel.id, data.trail, playerModel.color));
                 this.subscribe(playerModel.viewId, "immunity-ended", () => this.handleImmunityChange(playerModel.viewId, false));
                 this.subscribe(playerModel.id, "teleported", (data) => this.handlePlayerTeleport(playerModel.viewId, data));
             }
 
-            handlePlayerTargetSet(viewId, data) { 
-                const playerObj = this.getPlayerObjectByViewId(viewId);
-                if(!playerObj) return;
-
+            handlePlayerTargetSet(viewId, data) {
+                const playerObj = this.getPlayerObjectByViewId(viewId); if(!playerObj) return;
                 playerObj.userData.visualLerpStartWorldPos = this.gridToWorld(data.oldGridX, data.oldGridY);
                 playerObj.userData.visualLerpEndWorldPos = this.gridToWorld(data.targetGridX, data.targetGridY);
-                
                 playerObj.userData.visualLerpStartQuaternion = playerObj.quaternion.clone();
-
-                const qTarget = new THREE.Quaternion(); 
-                qTarget.setFromAxisAngle(new THREE.Vector3(0,1,0), this.directionToAngle(data.direction));
-                playerObj.userData.visualTargetQuaternion = qTarget.clone(); 
-
+                const qTarget = new THREE.Quaternion(); qTarget.setFromAxisAngle(new THREE.Vector3(0,1,0), this.directionToAngle(data.direction));
+                playerObj.userData.visualTargetQuaternion = qTarget.clone();
                 playerObj.position.copy(playerObj.userData.visualLerpStartWorldPos);
-
                 if (!playerObj.userData.animationNextVisualPosition) playerObj.userData.animationNextVisualPosition = new THREE.Vector3();
                 playerObj.userData.animationNextVisualPosition.copy(playerObj.userData.visualLerpStartWorldPos);
                 if (!playerObj.userData.animationNextVisualQuaternion) playerObj.userData.animationNextVisualQuaternion = new THREE.Quaternion();
                 playerObj.userData.animationNextVisualQuaternion.copy(playerObj.userData.visualLerpStartQuaternion);
-
-                playerObj.userData.currentGridX = data.oldGridX; 
-                playerObj.userData.currentGridY = data.oldGridY;
+                playerObj.userData.currentGridX = data.oldGridX; playerObj.userData.currentGridY = data.oldGridY;
             }
 
-            handlePlayerVisualProgress(viewId, data) { 
+            handlePlayerVisualProgress(viewId, data) {
                 const playerObj = this.getPlayerObjectByViewId(viewId);
-                if (!playerObj || !playerObj.userData.visualLerpStartWorldPos || !playerObj.userData.visualLerpEndWorldPos) {
-                    return;
-                }
-
-                if (!playerObj.userData.animationNextVisualPosition) { 
-                    playerObj.userData.animationNextVisualPosition = new THREE.Vector3();
-                }
-                playerObj.userData.animationNextVisualPosition.lerpVectors(
-                    playerObj.userData.visualLerpStartWorldPos, 
-                    playerObj.userData.visualLerpEndWorldPos, 
-                    data.progress
-                );
-
+                if (!playerObj || !playerObj.userData.visualLerpStartWorldPos || !playerObj.userData.visualLerpEndWorldPos) return;
+                if (!playerObj.userData.animationNextVisualPosition) playerObj.userData.animationNextVisualPosition = new THREE.Vector3();
+                playerObj.userData.animationNextVisualPosition.lerpVectors( playerObj.userData.visualLerpStartWorldPos, playerObj.userData.visualLerpEndWorldPos, data.progress );
                 if (playerObj.userData.visualLerpStartQuaternion && playerObj.userData.visualTargetQuaternion) {
-                    if (!playerObj.userData.animationNextVisualQuaternion) { 
-                        playerObj.userData.animationNextVisualQuaternion = new THREE.Quaternion();
-                    }
-                    playerObj.userData.animationNextVisualQuaternion
-                        .copy(playerObj.userData.visualLerpStartQuaternion)
-                        .slerp(playerObj.userData.visualTargetQuaternion, data.progress);
+                    if (!playerObj.userData.animationNextVisualQuaternion) playerObj.userData.animationNextVisualQuaternion = new THREE.Quaternion();
+                    playerObj.userData.animationNextVisualQuaternion.copy(playerObj.userData.visualLerpStartQuaternion).slerp(playerObj.userData.visualTargetQuaternion, data.progress);
                 }
             }
 
-            handlePlayerLogicalMoveComplete(viewId, data) { 
-                const playerObj = this.getPlayerObjectByViewId(viewId);
-                if (!playerObj) return;
-
-                playerObj.userData.currentGridX = data.gridX;
-                playerObj.userData.currentGridY = data.gridY;
-
-                const finalWorldPos = playerObj.userData.visualLerpEndWorldPos ? 
-                                      playerObj.userData.visualLerpEndWorldPos.clone() : 
-                                      this.gridToWorld(data.gridX, data.gridY);
-                
-                const finalQuaternion = playerObj.userData.visualTargetQuaternion ? 
-                                        playerObj.userData.visualTargetQuaternion.clone() :
-                                        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), this.directionToAngle(data.direction));
-
-                playerObj.position.copy(finalWorldPos);
-                playerObj.quaternion.copy(finalQuaternion);
-
-                if (playerObj.userData.animationNextVisualPosition) {
-                    playerObj.userData.animationNextVisualPosition.copy(finalWorldPos);
-                }
-                if (playerObj.userData.animationNextVisualQuaternion) {
-                    playerObj.userData.animationNextVisualQuaternion.copy(finalQuaternion);
-                }
+            handlePlayerLogicalMoveComplete(viewId, data) {
+                const playerObj = this.getPlayerObjectByViewId(viewId); if (!playerObj) return;
+                playerObj.userData.currentGridX = data.gridX; playerObj.userData.currentGridY = data.gridY;
+                const finalWorldPos = playerObj.userData.visualLerpEndWorldPos ? playerObj.userData.visualLerpEndWorldPos.clone() : this.gridToWorld(data.gridX, data.gridY);
+                const finalQuaternion = playerObj.userData.visualTargetQuaternion ? playerObj.userData.visualTargetQuaternion.clone() : new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), this.directionToAngle(data.direction));
+                playerObj.position.copy(finalWorldPos); playerObj.quaternion.copy(finalQuaternion);
+                if (playerObj.userData.animationNextVisualPosition) playerObj.userData.animationNextVisualPosition.copy(finalWorldPos);
+                if (playerObj.userData.animationNextVisualQuaternion) playerObj.userData.animationNextVisualQuaternion.copy(finalQuaternion);
             }
 
-            handlePlayerTeleport(viewId, data) { 
-                const playerObj = this.getPlayerObjectByViewId(viewId);
-                if(!playerObj) return;
-                
+            handlePlayerTeleport(viewId, data) {
+                const playerObj = this.getPlayerObjectByViewId(viewId); if(!playerObj) return;
                 const newWorldPos = this.gridToWorld(data.gridX, data.gridY);
                 playerObj.position.copy(newWorldPos);
-                
-                const q = new THREE.Quaternion();
-                q.setFromAxisAngle(new THREE.Vector3(0,1,0), this.directionToAngle(data.direction));
+                const q = new THREE.Quaternion(); q.setFromAxisAngle(new THREE.Vector3(0,1,0), this.directionToAngle(data.direction));
                 playerObj.quaternion.copy(q);
-                
-                playerObj.userData.visualLerpStartWorldPos = newWorldPos.clone();
-                playerObj.userData.visualLerpEndWorldPos = newWorldPos.clone(); 
-                playerObj.userData.visualLerpStartQuaternion = q.clone();
-                playerObj.userData.visualTargetQuaternion = q.clone(); 
-
+                playerObj.userData.visualLerpStartWorldPos = newWorldPos.clone(); playerObj.userData.visualLerpEndWorldPos = newWorldPos.clone();
+                playerObj.userData.visualLerpStartQuaternion = q.clone(); playerObj.userData.visualTargetQuaternion = q.clone();
                 if (!playerObj.userData.animationNextVisualPosition) playerObj.userData.animationNextVisualPosition = new THREE.Vector3();
                 playerObj.userData.animationNextVisualPosition.copy(newWorldPos);
                 if (!playerObj.userData.animationNextVisualQuaternion) playerObj.userData.animationNextVisualQuaternion = new THREE.Quaternion();
                 playerObj.userData.animationNextVisualQuaternion.copy(q);
-                
-                playerObj.userData.currentGridX = data.gridX;
-                playerObj.userData.currentGridY = data.gridY;
+                playerObj.userData.currentGridX = data.gridX; playerObj.userData.currentGridY = data.gridY;
             }
 
-            onPlayerRemoved(data) {  
+            onPlayerRemoved(data) {
                 const playerObj = this.playerObjects.get(data.id);
                 if (playerObj) {
                     this.scene.remove(playerObj); this.playerObjects.delete(data.id);
                     this.clearChalkTrail(data.id); this.chalkTrailObjects.delete(data.id);
                 }
             }
-            
-            getPlayerObjectByViewId(viewId) { 
-                for (const obj of this.playerObjects.values()) {
-                    if (obj.userData.viewId === viewId) return obj;
-                } return null;
+
+            getPlayerObjectByViewId(viewId) {
+                for (const obj of this.playerObjects.values()) { if (obj.userData.viewId === viewId) return obj; } return null;
             }
-            directionToAngle(dir) { 
-                if (dir === 0) return Math.PI; if (dir === 1) return Math.PI / 2; 
+            directionToAngle(dir) {
+                if (dir === 0) return Math.PI; if (dir === 1) return Math.PI / 2;
                 if (dir === 2) return 0; if (dir === 3) return -Math.PI / 2; return 0;
             }
 
-            updateChalkTrail(playerId, trailData, color) { 
+            updateChalkTrail(playerId, trailData, color) {
                 this.clearChalkTrail(playerId); const trailMeshes = [];
                 const material = new THREE.MeshBasicMaterial({ color: color, transparent: true, side: THREE.DoubleSide });
-                const geometry = new THREE.CircleGeometry(C.CELL_WIDTH * 0.1, 16); 
-                
-                const trailLength = Math.min(trailData.length, C.CHALK_TRAIL_LENGTH); 
+                const geometry = new THREE.CircleGeometry(C.CELL_WIDTH * 0.1, 16);
+                const trailLength = Math.min(trailData.length, C.CHALK_TRAIL_LENGTH);
                 for (let i = 0; i < trailLength; i++) {
                     const mark = trailData[i];
-                    const mesh = new THREE.Mesh(geometry, material.clone()); 
-                    mesh.material.opacity = 1.0 - (i / C.CHALK_TRAIL_LENGTH); 
-                    mesh.position.copy(this.gridToWorld(mark.gridX, mark.gridY, 0.02)); 
+                    const mesh = new THREE.Mesh(geometry, material.clone());
+                    mesh.material.opacity = 1.0 - (i / C.CHALK_TRAIL_LENGTH);
+                    mesh.position.copy(this.gridToWorld(mark.gridX, mark.gridY, 0.02));
                     mesh.rotation.x = -Math.PI / 2; this.scene.add(mesh); trailMeshes.push(mesh);
                 }
                 this.chalkTrailObjects.set(playerId, trailMeshes);
             }
 
-            clearChalkTrail(playerId) { 
+            clearChalkTrail(playerId) {
                 const existingTrail = this.chalkTrailObjects.get(playerId);
-                if (existingTrail) existingTrail.forEach(mesh => {
-                    mesh.geometry.dispose(); mesh.material.dispose(); this.scene.remove(mesh);
-                });
+                if (existingTrail) existingTrail.forEach(mesh => { mesh.geometry.dispose(); mesh.material.dispose(); this.scene.remove(mesh); });
                 this.chalkTrailObjects.set(playerId, []);
             }
-            
+
             updatePlayerVisualState(viewId) {
                 const playerObj = this.getPlayerObjectByViewId(viewId);
-                if (!playerObj || !playerObj.userData.pModel || playerObj.children.length === 0) {
-                    return;
-                }
-
-                const pModel = playerObj.userData.pModel;
-                const mainMesh = playerObj.children[0];
-
-                let newOpacity = 1.0;
-                let newEmissive = 0x000000;
-
-                if (pModel.isIt) {
-                    newEmissive = pModel.color;
-                    newOpacity = 1.0; 
-                } else if (pModel.isImmune) {
-                    newOpacity = C.IMMUNITY_OPACITY; 
-                } else { // Not It, Not Immune
-                    newOpacity = 1.0;
-                }
-
-                if (newOpacity < 1.0) {
-                    mainMesh.material.transparent = true;
-                } 
-
+                if (!playerObj || !playerObj.userData.pModel || playerObj.children.length === 0) return;
+                const pModel = playerObj.userData.pModel; const mainMesh = playerObj.children[0];
+                let newOpacity = 1.0; let newEmissive = 0x000000;
+                if (pModel.isIt) { newEmissive = pModel.color; newOpacity = 1.0; }
+                else if (pModel.isImmune) { newOpacity = C.IMMUNITY_OPACITY; }
+                else { newOpacity = 1.0; }
+                if (newOpacity < 1.0) mainMesh.material.transparent = true;
                 if (mainMesh.material.opacity !== newOpacity || mainMesh.material.emissive.getHex() !== newEmissive) {
-                    mainMesh.material.opacity = newOpacity;
-                    mainMesh.material.emissive.setHex(newEmissive);
-                    mainMesh.material.needsUpdate = true;
+                    mainMesh.material.opacity = newOpacity; mainMesh.material.emissive.setHex(newEmissive); mainMesh.material.needsUpdate = true;
                 }
             }
 
-            onItChanged(data) { 
-                console.log(`[VIEW.onItChanged] Received: newIt=${data.newItViewId}, oldIt=${data.oldItViewId}. My viewId: ${this.viewId}`);
-                
+            onItChanged(data) {
                 if (data.oldItViewId) {
                     const oldItPlayerObject = this.getPlayerObjectByViewId(data.oldItViewId);
-                    if (oldItPlayerObject && oldItPlayerObject.userData.pModel) {
-                         oldItPlayerObject.userData.pModel.isIt = false;
-                    }
+                    if (oldItPlayerObject && oldItPlayerObject.userData.pModel) oldItPlayerObject.userData.pModel.isIt = false;
                     this.updatePlayerVisualState(data.oldItViewId);
                 }
                 if (data.newItViewId) {
                     const newItPlayerObject = this.getPlayerObjectByViewId(data.newItViewId);
-                     if (newItPlayerObject && newItPlayerObject.userData.pModel) {
-                        newItPlayerObject.userData.pModel.isIt = true;
-                     }
+                     if (newItPlayerObject && newItPlayerObject.userData.pModel) newItPlayerObject.userData.pModel.isIt = true;
                     this.updatePlayerVisualState(data.newItViewId);
                 }
-
-                const myPModel = this.gameModel.players.get(this.viewId); 
-                if (myPModel) { 
+                const myPModel = this.gameModel.players.get(this.viewId);
+                if (myPModel) {
                     const myPlayerObj = this.getPlayerObjectByViewId(this.viewId);
-                    if (myPlayerObj && myPlayerObj.userData.pModel) {
-                        myPlayerObj.userData.pModel.isIt = myPModel.isIt; 
-                    }
-
-                    const newStatusText = myPModel.isIt ? "You are It!" : "Run!";
-                    console.log(`[VIEW.onItChanged] My(${this.viewId}) status, pModel.isIt=${myPModel.isIt}. HUD text: ${newStatusText}`);
-                    document.getElementById('statusDisplay').textContent = newStatusText;
-                } else {
-                    console.warn(`[VIEW.onItChanged] My player model not found for ${this.viewId}`);
+                    if (myPlayerObj && myPlayerObj.userData.pModel) myPlayerObj.userData.pModel.isIt = myPModel.isIt;
+                    document.getElementById('statusDisplay').textContent = myPModel.isIt ? "You are It!" : "Run!";
                 }
             }
 
-            onPlayerTagged(data) { 
-                console.log(`[VIEW.onPlayerTagged] Received: oldIt=${data.oldItViewId} (score ${data.itPlayerScore}), newIt=${data.newItViewId} (score ${data.taggedPlayerScore})`);
-                
-                const oldItPlayerObject = this.getPlayerObjectByViewId(data.oldItViewId); 
-                if (oldItPlayerObject && oldItPlayerObject.userData.pModel) { 
-                    oldItPlayerObject.userData.pModel.score = data.itPlayerScore; 
-                    oldItPlayerObject.userData.pModel.isImmune = true; 
-                    oldItPlayerObject.userData.pModel.isIt = false;   
+            onPlayerTagged(data) {
+                const oldItPlayerObject = this.getPlayerObjectByViewId(data.oldItViewId);
+                if (oldItPlayerObject && oldItPlayerObject.userData.pModel) {
+                    oldItPlayerObject.userData.pModel.score = data.itPlayerScore; oldItPlayerObject.userData.pModel.isImmune = true; oldItPlayerObject.userData.pModel.isIt = false;
                     if (this.viewId === data.oldItViewId) document.getElementById('scoreDisplay').textContent = data.itPlayerScore;
-                    this.updatePlayerVisualState(data.oldItViewId); 
+                    this.updatePlayerVisualState(data.oldItViewId);
                 }
-
-                const newItPlayerObject = this.getPlayerObjectByViewId(data.newItViewId); 
+                const newItPlayerObject = this.getPlayerObjectByViewId(data.newItViewId);
                 if (newItPlayerObject && newItPlayerObject.userData.pModel) {
-                    newItPlayerObject.userData.pModel.score = data.taggedPlayerScore;
-                    newItPlayerObject.userData.pModel.isImmune = false; 
-                    newItPlayerObject.userData.pModel.isIt = true;    
+                    newItPlayerObject.userData.pModel.score = data.taggedPlayerScore; newItPlayerObject.userData.pModel.isImmune = false; newItPlayerObject.userData.pModel.isIt = true;
                     if (this.viewId === data.newItViewId) document.getElementById('scoreDisplay').textContent = data.taggedPlayerScore;
                     this.updatePlayerVisualState(data.newItViewId);
                 }
             }
-            
-            handleImmunityChange(viewId, isImmune) { 
+
+            handleImmunityChange(viewId, isImmune) {
                 const playerObj = this.getPlayerObjectByViewId(viewId);
                 if(playerObj && playerObj.userData.pModel) {
-                    const pModel = playerObj.userData.pModel;
-                    console.log(`[VIEW.handleImmunityChange] Player ${viewId}. Current pModel.isImmune=${pModel.isImmune}, Requested isImmune: ${isImmune}. IsIt: ${pModel.isIt}`);
-                    pModel.isImmune = isImmune; 
-                    this.updatePlayerVisualState(viewId); 
+                    playerObj.userData.pModel.isImmune = isImmune;
+                    this.updatePlayerVisualState(viewId);
                 }
             }
 
-            onScoreUpdated(data) { 
+            onScoreUpdated(data) {
                  const playerObj = this.getPlayerObjectByViewId(data.viewId);
                  if (playerObj && playerObj.userData.pModel) playerObj.userData.pModel.score = data.score;
                  if (this.viewId === data.viewId) document.getElementById('scoreDisplay').textContent = data.score;
             }
-            onCubeSpawned(data) { 
+            onCubeSpawned(data) {
                 if(this.blueCubeObjects.has(data.id)) return;
-                const geometry = new THREE.BoxGeometry(0.7, 0.7, 0.7); 
+                const geometry = new THREE.BoxGeometry(0.7, 0.7, 0.7);
                 const material = new THREE.MeshStandardMaterial({ color: 0x3399ff, emissive: 0x1155cc, roughness:0.3, metalness: 0.1 });
                 const cubeMesh = new THREE.Mesh(geometry, material); cubeMesh.castShadow = true;
-                cubeMesh.position.copy(this.gridToWorld(data.x, data.y, 0.75)); 
+                cubeMesh.position.copy(this.gridToWorld(data.x, data.y, 0.75));
                 this.blueCubeObjects.set(data.id, cubeMesh); this.scene.add(cubeMesh);
             }
-            onCubeCollected(data) { 
+            onCubeCollected(data) {
                 const cubeObj = this.blueCubeObjects.get(data.cubeId);
                 if (cubeObj) { cubeObj.geometry.dispose(); cubeObj.material.dispose(); this.scene.remove(cubeObj); this.blueCubeObjects.delete(data.cubeId); }
             }
-            onGameStateChanged(data) { 
-                const gameMessageDiv = document.getElementById('gameMessage'); 
-                const winnerChipsContainer = document.getElementById('winnerChipsContainer');
-                const messageTextElement = document.getElementById('messageTextElement'); 
-                const countdownTextP = document.getElementById('countdownText');
-                
-                this.currentGameState = data.state; 
-                this.gameEndTime = data.endTime; 
-                this.nextGameTime = data.nextGameTime;
-                
-                gameMessageDiv.style.display = 'none'; 
-                winnerChipsContainer.innerHTML = ''; 
-                countdownTextP.textContent = ''; 
-                messageTextElement.textContent = ''; 
+            onGameStateChanged(data) {
+                const gameMessageDiv = document.getElementById('gameMessage'); const winnerChipsContainer = document.getElementById('winnerChipsContainer');
+                const messageTextElement = document.getElementById('messageTextElement'); const countdownTextP = document.getElementById('countdownText');
+                this.currentGameState = data.state; this.gameEndTime = data.endTime; this.nextGameTime = data.nextGameTime;
+                gameMessageDiv.style.display = 'none'; winnerChipsContainer.innerHTML = ''; countdownTextP.textContent = ''; messageTextElement.textContent = '';
                 let myPModel = this.gameModel.players.get(this.viewId);
 
                 const displayWinnerChips = (winnerViewIds, baseMessage) => {
-                    winnerChipsContainer.innerHTML = ''; 
+                    winnerChipsContainer.innerHTML = '';
                     if (winnerViewIds && winnerViewIds.length > 0) {
                         let firstChip = true;
                         winnerViewIds.forEach(winnerId => {
                             const winnerPModel = this.gameModel.players.get(winnerId);
                             if (winnerPModel) {
                                 const chip = document.createElement('span');
-                                chip.style.display = 'inline-block';
-                                chip.style.width = '20px';
-                                chip.style.height = '20px';
-                                chip.style.borderRadius = '50%';
-                                chip.style.backgroundColor = `#${winnerPModel.color.toString(16).padStart(6, '0')}`;
-                                chip.style.border = '1px solid white';
-                                chip.style.verticalAlign = 'middle';
+                                chip.style.cssText = 'display:inline-block; width:20px; height:20px; border-radius:50%; background-color:#' + winnerPModel.color.toString(16).padStart(6, '0') + '; border:1px solid white; vertical-align:middle;';
                                 if (!firstChip) chip.style.marginLeft = '5px';
-                                winnerChipsContainer.appendChild(chip);
-                                firstChip = false;
+                                winnerChipsContainer.appendChild(chip); firstChip = false;
                             }
                         });
                         messageTextElement.textContent = (winnerViewIds.length > 1 ? " Draw! " : " ") + baseMessage;
-                    } else {
-                         messageTextElement.textContent = (this.gameModel.players.size > 0 ? "No one scored. " : "No winner. ") + baseMessage;
-                    }
+                    } else { messageTextElement.textContent = (this.gameModel.players.size > 0 ? "No one scored. " : "No winner. ") + baseMessage; }
                      gameMessageDiv.style.display = 'block';
                 };
 
                 switch(data.state) {
-                    case "waiting": 
-                        document.getElementById('statusDisplay').textContent = "Waiting for players..."; 
-                        if(this.gameModel.players.size < 2) { 
-                            messageTextElement.textContent = "Need at least 2 players to start."; 
-                            winnerChipsContainer.innerHTML = ''; 
-                            gameMessageDiv.style.display = 'block';
-                        } 
+                    case "waiting":
+                        document.getElementById('statusDisplay').textContent = "Waiting for players...";
+                        if(this.gameModel.players.size < 2) { messageTextElement.textContent = "Need at least 2 players to start."; winnerChipsContainer.innerHTML = ''; gameMessageDiv.style.display = 'block';}
                         break;
-                    case "playing": 
-                        myPModel = this.gameModel.players.get(this.viewId); 
-                        document.getElementById('statusDisplay').textContent = myPModel?.isIt ? "You are It!" : "Run!"; 
-                        gameMessageDiv.style.display = 'none';
+                    case "playing":
+                        myPModel = this.gameModel.players.get(this.viewId);
+                        document.getElementById('statusDisplay').textContent = myPModel?.isIt ? "You are It!" : "Run!"; gameMessageDiv.style.display = 'none';
                         break;
-                    case "gameover": 
-                        displayWinnerChips(data.winners, "won the game!");
-                        document.getElementById('statusDisplay').textContent = "Game Over"; 
+                    case "gameover":
+                        displayWinnerChips(data.winners, "won the game!"); document.getElementById('statusDisplay').textContent = "Game Over";
                         break;
-                    case "countdown": 
+                    case "countdown":
                         let baseCountdownMessage = "New game starting soon...";
-                        if (data.previousWinners && data.previousWinners.length > 0) {
-                             displayWinnerChips(data.previousWinners, "won the last round! " + baseCountdownMessage);
-                        } else {
-                            const modelWinners = this.gameModel.winnerViewIds; 
-                            if (modelWinners && modelWinners.length > 0) {
-                                displayWinnerChips(modelWinners, "won the last round! " + baseCountdownMessage);
-                            } else {
-                                messageTextElement.textContent = baseCountdownMessage; 
-                                winnerChipsContainer.innerHTML = ''; 
-                                gameMessageDiv.style.display = 'block';
-                            }
+                        if (data.previousWinners && data.previousWinners.length > 0) displayWinnerChips(data.previousWinners, "won the last round! " + baseCountdownMessage);
+                        else {
+                            const modelWinners = this.gameModel.winnerViewIds;
+                            if (modelWinners && modelWinners.length > 0) displayWinnerChips(modelWinners, "won the last round! " + baseCountdownMessage);
+                            else { messageTextElement.textContent = baseCountdownMessage; winnerChipsContainer.innerHTML = ''; gameMessageDiv.style.display = 'block'; }
                         }
-                        document.getElementById('statusDisplay').textContent = "Next game soon..."; 
+                        document.getElementById('statusDisplay').textContent = "Next game soon...";
                         break;
                 }
             }
-            
-           update() { 
+
+           update() {
                 this.playerObjects.forEach(playerObj => {
-                    if (playerObj.userData.animationNextVisualPosition) {
-                        playerObj.position.lerp(playerObj.userData.animationNextVisualPosition, this.viewLerpFactor);
-                    }
-                    if (playerObj.userData.animationNextVisualQuaternion) {
-                        playerObj.quaternion.slerp(playerObj.userData.animationNextVisualQuaternion, this.viewLerpFactor);
-                    }
+                    if (playerObj.userData.animationNextVisualPosition) playerObj.position.lerp(playerObj.userData.animationNextVisualPosition, this.viewLerpFactor);
+                    if (playerObj.userData.animationNextVisualQuaternion) playerObj.quaternion.slerp(playerObj.userData.animationNextVisualQuaternion, this.viewLerpFactor);
                 });
 
                 if (this.currentGameState === "playing" && this.gameEndTime) {
@@ -1252,48 +1087,38 @@
                 } else if (this.currentGameState === "countdown" && this.nextGameTime) {
                      const remaining = Math.max(0, this.nextGameTime - this.gameModel.now());
                      const seconds = Math.floor(remaining / 1000);
-                     document.getElementById('countdownText').textContent = `Starting in: ${seconds}s`;
-                     document.getElementById('gameTimeDisplay').textContent = `0:00`;
+                     document.getElementById('countdownText').textContent = `Starting in: ${seconds}s`; document.getElementById('gameTimeDisplay').textContent = `0:00`;
                 } else { document.getElementById('gameTimeDisplay').textContent = `0:00`; }
 
                 const myPlayerObj = this.getPlayerObjectByViewId(this.viewId);
-                if (myPlayerObj && myPlayerObj.userData.pModel) { 
-                    const playerModel = myPlayerObj.userData.pModel;
-                    const desiredCamOffset = new THREE.Vector3();
-                    const camDist = 7; 
-                    const camHeight = 4; 
-                    
-                    if(playerModel.direction === 0) desiredCamOffset.set(0, camHeight, camDist);    
-                    else if(playerModel.direction === 1) desiredCamOffset.set(-camDist, camHeight, 0); 
-                    else if(playerModel.direction === 2) desiredCamOffset.set(0, camHeight, -camDist); 
-                    else desiredCamOffset.set(camDist, camHeight, 0); 
-
-                    if (!this.currentCameraOffset) { 
-                        this.currentCameraOffset = desiredCamOffset.clone();
-                    } else {
-                        this.currentCameraOffset.lerp(desiredCamOffset, 0.03); 
-                    }
-                    
-                    const targetCamPos = new THREE.Vector3();
-                    targetCamPos.copy(myPlayerObj.position).add(this.currentCameraOffset); 
-                    
-                    this.camera.position.lerp(targetCamPos, 0.08); 
-                    
-                    this.camera.lookAt(myPlayerObj.position.x, myPlayerObj.position.y + 0.2, myPlayerObj.position.z); 
-                } else { 
-                    this.camera.position.set(0, C.GRID_SIZE * C.CELL_WIDTH * 0.3, C.GRID_SIZE * C.CELL_WIDTH * 0.1); 
-                    this.camera.lookAt(0,0,0);
+                if (myPlayerObj && myPlayerObj.userData.pModel) {
+                    const playerModel = myPlayerObj.userData.pModel; const desiredCamOffset = new THREE.Vector3();
+                    const camDist = 7; const camHeight = 4;
+                    if(playerModel.direction === 0) desiredCamOffset.set(0, camHeight, camDist); else if(playerModel.direction === 1) desiredCamOffset.set(-camDist, camHeight, 0);
+                    else if(playerModel.direction === 2) desiredCamOffset.set(0, camHeight, -camDist); else desiredCamOffset.set(camDist, camHeight, 0);
+                    if (!this.currentCameraOffset) this.currentCameraOffset = desiredCamOffset.clone(); else this.currentCameraOffset.lerp(desiredCamOffset, 0.03);
+                    const targetCamPos = new THREE.Vector3(); targetCamPos.copy(myPlayerObj.position).add(this.currentCameraOffset);
+                    this.camera.position.lerp(targetCamPos, 0.08);
+                    this.camera.lookAt(myPlayerObj.position.x, myPlayerObj.position.y + 0.2, myPlayerObj.position.z);
+                } else {
+                    this.camera.position.set(0, C.GRID_SIZE * C.CELL_WIDTH * 0.3, C.GRID_SIZE * C.CELL_WIDTH * 0.1); this.camera.lookAt(0,0,0);
                 }
                 this.renderer.render(this.scene, this.camera);
             }
-            detach() { 
+            detach() {
+                // Note: Add cleanup for global event listeners (orientationchange, resize, pointerdown, touchstart) if they were not {once:true}
+                // or if the GameView instance might be detached and recreated multiple times without a full page reload.
+                // For now, the {once:true} on pointer/touch and the standard screen.orientation.onchange should be mostly fine.
                 if(this.renderer) { this.renderer.dispose(); if (this.renderer.domElement.parentNode) { this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);}}
-                this.playerObjects.forEach(obj => { obj.traverse(o => {if(o.geometry)o.geometry.dispose(); if(o.material)o.material.dispose();}); this.scene.remove(obj);}); 
+                this.playerObjects.forEach(obj => { obj.traverse(o => {if(o.geometry)o.geometry.dispose(); if(o.material)o.material.dispose();}); this.scene.remove(obj);});
                 this.blueCubeObjects.forEach(obj => { obj.traverse(o => {if(o.geometry)o.geometry.dispose(); if(o.material)o.material.dispose();}); this.scene.remove(obj);});
                 this.chalkTrailObjects.forEach(trail => trail.forEach(m => {m.traverse(o => {if(o.geometry)o.geometry.dispose(); if(o.material)o.material.dispose();}); this.scene.remove(m);}));
                 super.detach();
             }
         }
+
+        // Moved Multisynq.App.makeWidgetDock() to be called before Session.join
+        Multisynq.App.makeWidgetDock();
 
         Multisynq.Session.join({
             apiKey: API_KEY, appId: APP_ID, model: GameModel, view: GameView,
