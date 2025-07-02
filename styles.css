@@ -148,3 +148,46 @@ a:hover {
     max-height: 30px; /* Adjust as needed */
     margin-right: 5px; /* Add spacing between image and text */
 }
+.vibe-section {
+    width: 100%;
+    max-width: 800px;
+    margin: 50px auto;
+    padding: 0 20px;
+    text-align: center;
+    background-color: #0d1117; /* slightly lighter than body background */
+    border-top: 1px solid #222;
+    border-bottom: 1px solid #222;
+    padding-top: 30px;
+    padding-bottom: 30px;
+}
+
+.vibe-section h3 {
+    font-size: 25px;
+    margin-bottom: 15px;
+    color: #fff;
+}
+
+.vibe-section p {
+    font-size: 14px;
+    color: #ccc;
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+.vibe-section a.games-link {
+    color: #2a0fc6;
+    font-weight: bold;
+    text-decoration: none;
+    border: 1px solid #2a0fc6;
+    padding: 8px 14px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 10px;
+    transition: all 0.3s ease;
+}
+
+.vibe-section a.games-link:hover {
+    background-color: #2a0fc6;
+    color: white;
+    text-decoration: none;
+}
