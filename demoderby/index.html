@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MultiSynq Demolition Derby</title>
+    <script src="https://cdn.jsdelivr.net/npm/@multisynq/client@latest/bundled/multisynq-client.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="config.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        body { margin: 0; overflow: hidden; background-color: #6B4226; font-family: 'Press Start 2P', cursive; color: white; touch-action: none; }
+        #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; position: relative; }
+        #game-canvas { background-color: #A0522D; border: 10px solid #3A3A3A; box-sizing: border-box; }
+        .hud { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 28px; color: #FFD700; text-shadow: 2px 2px #000000; padding: 5px 10px; background-color: rgba(0,0,0,0.3); border-radius: 5px;}
+        .center-message { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #FFFFFF; text-shadow: 3px 3px #FF0000, -3px -3px #0000FF; background-color: rgba(0,0,0,0.6); padding: 20px; border-radius: 10px; z-index: 20; display: none; min-width: 300px; }
+        .center-message .message-text { display: block; margin-bottom: 15px; }
+        .center-message .countdown-text { display: block; margin-top: 10px; color: #FFFF00; }
+
+        .mobile-controls {
+            position: fixed;
+            bottom: 10px;
+            width: 100%;
+            display: none;
+            align-items: flex-end;
+            padding: 0 30px;
+            box-sizing: border-box;
+            z-index: 10;
+            pointer-events: none;
+        }
+        @media (pointer: coarse) { .mobile-controls { display: flex; } }
+        @media (hover: hover) and (pointer: coarse) { .mobile-controls { display: none; } }
+
+        .mobile-controls .left-controls {
+            position: absolute;
+            left: 30px;
+            bottom: 0;
+            display: flex;
+            gap: 15px;
+        }
+        .mobile-controls .right-controls {
+            position: absolute;
+            right: 30px;
+            bottom: 0;
+            display: flex;
+            gap: 15px;
+        }
+        .mobile-controls button { pointer-events: auto; background-color: rgba(0, 0, 0, 0.7); color: white; border: 2px solid #FFFFFF; padding: 0; width: 70px; height: 70px; font-size: 24px; border-radius: 15px; touch-action: manipulation; user-select: none; -webkit-user-select: none; display: flex; justify-content: center; align-items: center; text-shadow: 1px 1px #000000; }
+
+        #btn-left::before { content: "ᐊ"; } #btn-right::before { content: "ᐅ"; } #btn-fwd::before { content: "ᐃ"; } #btn-brake::before { content: "ᐁ"; }
+        #croquet_dock_button_envelope { background-color: rgba(50, 50, 50, 0.8) !important; border-radius: 8px !important; }
+        #croquet_dock_button_label { color: white !important; font-family: 'Press Start 2P', cursive !important; }
+    </style>
+
+</head>
+<body>
+    <div id="game-container"><canvas id="game-canvas"></canvas><div id="player-damage-hud" class="hud">Damage: 0</div><div id="center-message-display" class="center-message"><span id="game-over-text" class="message-text">Game Over!</span><span id="countdown-timer-text" class="countdown-text">10</span></div></div>
+    <div class="mobile-controls"><div class="left-controls"><button id="btn-left" aria-label="Turn Left"></button><button id="btn-right" aria-label="Turn Right"></button></div><div class="right-controls"><button id="btn-fwd" aria-label="Accelerate"></button><button id="btn-brake" aria-label="Brake"></button></div></div>
+    <script>
+    const API_KEY = window.APP_CONFIG?.API_KEY || "Your API Key from multisynq.io/code";
+    const APP_ID = window.APP_CONFIG?.APP_ID || "com.domain.game  (Reversed domain name and game name)";
+
+        const CAR_IMAGE_PATHS = [
+            "assets/1car.png", "assets/2car.png", "assets/3car.png", "assets/4car.png",
+            "assets/5car.png", "assets/6car.png", "assets/7car.png", "assets/8car.png"
+        ];
+        let CAR_IMAGES = [];
+
+        const CAR_VISUAL_SCALE = 0.7;
+        const MAX_RACING_PLAYERS = 8;
+        const WORLD_WIDTH = 1000; const WORLD_HEIGHT = 600;
+        const COLLISION_WIDTH = 35;
+        const COLLISION_HEIGHT = 65;
+        const MAX_SPEED = 8; const ACCELERATION = 0.15;
+        const MODEL_TICK_MS = 20;
+        const NATURAL_DECELERATION_TIME = 8;
+        const NATURAL_DECELERATION = MAX_SPEED / (NATURAL_DECELERATION_TIME * (1000 / MODEL_TICK_MS));
+        const BRAKE_DECELERATION_FACTOR = 3; const TURN_SPEED = 0.06;
+        const WALL_BOUNCE_FACTOR = -0.3;
+        const ARENA_PADDING = 50; const TRACK_THICKNESS = 200;
+
+        let OVAL_SPECS_VIEW_ONLY = { outerRectX:0, outerRectY:0, outerRectWidth:0, outerRectHeight:0, innerRectX:0, innerRectY:0, innerRectWidth:0, innerRectHeight:0, cornerRadiusOuter:0, cornerRadiusInner:0 };
+
+        const PLAYER_COLORS = ['#FF5733', '#33FF57', '#3357FF', '#FFFF33', '#FF33FF', '#33FFFF', '#FF8C33', '#B833FF'];
+        const GAME_RESTART_DELAY_MS = 10000;
+        const PRE_ROUND_COUNTDOWN_MS = 5000;
+
+        async function preloadCarImages() {
+            console.log("Preloading car images...");
+            const loadPromises = CAR_IMAGE_PATHS.map(src => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => { resolve(img); };
+                    img.onerror = (err) => { console.error(`Failed to load image: ${src}`, err); reject(err); };
+                    img.src = src;
+                });
+            });
+            try {
+                CAR_IMAGES = await Promise.all(loadPromises);
+                console.log("All car images preloaded successfully.");
+            } catch (error) {
+                console.error("Error preloading one or more car images:", error);
+                alert("Error loading car images! Game might not display correctly.");
+                CAR_IMAGES = [];
+            }
+        }
+
+        class DerbyGame extends Multisynq.Model {
+            init() {
+                this.cars = new Map();
+                this.gameRunning = false;
+                this.winnerViewId = null;
+                this.gameStartTime = 0;
+
+                this.isRestarting = false;
+                this.restartTime = 0;
+
+                this.isPreRoundCountdown = false;
+                this.preRoundEndTime = 0;
+
+                this.minPlayersToStartRound = 2;
+                this.minPlayersToCompeteForWin = 2;
+                this.roundCarCount = 0;
+                this.currentRacerViewIds = new Set(); // To track actual racers in the current round
+
+                this.subscribe(this.sessionId, "view-join", this.handleViewJoin);
+                this.subscribe(this.sessionId, "view-exit", this.handleViewExit);
+                this.future(MODEL_TICK_MS).updateGame();
+                console.log(`${this.now()}: DerbyGame model initialized. Waiting for players. Need: ${this.minPlayersToStartRound}`);
+                this.publish("game", "waiting-for-players", { current: 0, needed: this.minPlayersToStartRound });
+            }
+
+            initiatePreRoundCountdown() {
+                console.log(`${this.now()}: MODEL: Initiating pre-round countdown. Players: ${this.cars.size}`);
+                this.isPreRoundCountdown = true;
+                this.preRoundEndTime = this.now() + PRE_ROUND_COUNTDOWN_MS;
+                this.gameRunning = false;
+                this.isRestarting = false;
+                this.winnerViewId = null;
+                this.publish("game", "pre-round-started", { duration: PRE_ROUND_COUNTDOWN_MS });
+            }
+
+            attemptFullRoundStart() {
+                console.log(`${this.now()}: MODEL: Attempting full round start. Players: ${this.cars.size}`);
+                const availablePlayers = Array.from(this.cars.values());
+
+                if (availablePlayers.length < this.minPlayersToStartRound) {
+                    this.gameRunning = false;
+                    this.isRestarting = false;
+                    this.isPreRoundCountdown = false;
+                    this.winnerViewId = null;
+                    this.currentRacerViewIds.clear(); // Clear racers if not enough to start
+                    this.publish("game", "waiting-for-players", { current: availablePlayers.length, needed: this.minPlayersToStartRound });
+                    console.log(`${this.now()}: MODEL: Not enough players for new round after countdown. Waiting. Have: ${availablePlayers.length}, Need: ${this.minPlayersToStartRound}`);
+                } else {
+                    this.executeRoundStartProcedure();
+                }
+            }
+
+            executeRoundStartProcedure() {
+                console.log(`${this.now()}: MODEL: Executing round start procedure. Current cars on map: ${this.cars.size}`);
+                this.gameRunning = true;
+                this.gameStartTime = this.now();
+                this.isRestarting = false;
+                this.isPreRoundCountdown = false;
+                this.winnerViewId = null;
+                this.currentRacerViewIds.clear(); // IMPORTANT: Clear for the new round
+
+                const availablePlayers = Array.from(this.cars.values());
+                const racers = availablePlayers.slice(0, MAX_RACING_PLAYERS);
+                this.roundCarCount = racers.length;
+
+                console.log(`${this.now()}: MODEL: Starting round with ${this.roundCarCount} racers out of ${availablePlayers.length} total connected.`);
+
+                racers.forEach((car, index) => {
+                    this.currentRacerViewIds.add(car.viewId); // Add this car's viewId to the set of current racers
+                    const xOffsetFactor = index - (this.roundCarCount / 2 - 0.5);
+                    const spawnX = ARENA_PADDING + TRACK_THICKNESS / 3;
+                    const spawnY = WORLD_HEIGHT / 2 + xOffsetFactor * (COLLISION_HEIGHT + 10);
+                    const spawnAngle = 0;
+                    const assignedColor = PLAYER_COLORS[car.visualIndex % PLAYER_COLORS.length];
+                    car.color = assignedColor;
+                    car.resetState(spawnX, spawnY, spawnAngle);
+                    console.log(`${this.now()}: MODEL: Resetting RACER ${car.id} (view: ${car.viewId}). Publishing car-added.`);
+                    this.publish("game", "car-added", {
+                        viewId: car.viewId, id: car.id, x: car.x, y: car.y,
+                        color: car.color, angle: car.angle,
+                        damage: car.damage, isDestroyed: car.isDestroyed,
+                        visualIndex: car.visualIndex,
+                        isRacing: true
+                    });
+                });
+
+                if (availablePlayers.length > MAX_RACING_PLAYERS) {
+                    for (let i = MAX_RACING_PLAYERS; i < availablePlayers.length; i++) {
+                        const spectatorCar = availablePlayers[i];
+                        spectatorCar.resetState(-1000, -1000, 0);
+                        console.log(`${this.now()}: MODEL: Player ${spectatorCar.viewId} is spectating this round.`);
+                        this.publish(spectatorCar.viewId, "spectator-mode", { message: "Round full. Spectating." });
+                        this.publish("game", "car-added", {
+                            viewId: spectatorCar.viewId, id: spectatorCar.id, x: spectatorCar.x, y: spectatorCar.y,
+                            color: spectatorCar.color, angle: spectatorCar.angle,
+                            damage: 0, isDestroyed: false,
+                            visualIndex: spectatorCar.visualIndex,
+                            isRacing: false
+                        });
+                    }
+                }
+                this.publish("game", "round-start", {});
+                console.log(`${this.now()}: MODEL: New round started with ${this.roundCarCount} racers, tracked IDs: ${[...this.currentRacerViewIds].join(',')}.`);
+            }
+
+            handleViewJoin(joiningViewId) {
+                const viewId = joiningViewId;
+                console.log(`${this.now()}: View ${viewId} joined. Cars on map BEFORE this join: ${this.cars.size}`);
+
+                if (this.cars.size >= CAR_IMAGE_PATHS.length && !this.cars.has(viewId)) {
+                    console.log(`${this.now()}: Max player models (${CAR_IMAGE_PATHS.length}). ${viewId} will spectate permanently.`);
+                    this.publish(viewId, "spectator-mode", { message: "Session full. Spectating." });
+                    return;
+                }
+
+                if (!this.cars.has(viewId)) {
+                    const visualIndex = this.cars.size % CAR_IMAGE_PATHS.length;
+                    const assignedColor = PLAYER_COLORS[visualIndex % PLAYER_COLORS.length];
+                    const car = CarModel.create({
+                        viewId: viewId, x: -1000, y: -1000,
+                        color: assignedColor, angle: 0,
+                        visualIndex: visualIndex
+                    });
+                    this.cars.set(viewId, car);
+                    console.log(`${this.now()}: Car for ${viewId} created (id: ${car.id}, visualIndex: ${visualIndex}). Total cars now: ${this.cars.size}`);
+                    this.publish("game", "car-added", {
+                        viewId: car.viewId, id: car.id, x: car.x, y: car.y,
+                        color: car.color, angle: car.angle,
+                        damage: car.damage, isDestroyed: car.isDestroyed,
+                        visualIndex: car.visualIndex,
+                        isRacing: false
+                    });
+                }
+
+                if (this.isPreRoundCountdown) {
+                    console.log(`${this.now()}: ${viewId} joined during pre-round countdown. Will be included. Informing of countdown.`);
+                    const timeLeft = Math.max(0, Math.ceil((this.preRoundEndTime - this.now()) / 1000));
+                    this.publish(viewId, "sync-pre-round-countdown", { timeLeft });
+                } else if (this.isRestarting) {
+                    console.log(`${this.now()}: ${viewId} joined during restart countdown. Will be included in next round attempt.`);
+                    const timeLeft = Math.max(0, Math.ceil((this.restartTime - this.now()) / 1000));
+                    this.publish(viewId, "sync-restart-countdown", { winnerViewId: this.winnerViewId, timeLeft });
+                } else if (this.gameRunning) {
+                    console.log(`${this.now()}: Player ${viewId} joined an active game. They will spectate.`);
+                    this.publish(viewId, "spectator-mode", { message: "Game in progress. Spectating." });
+                } else {
+                    if (this.cars.size >= this.minPlayersToStartRound) {
+                        console.log(`${this.now()}: Enough players (${this.cars.size}/${this.minPlayersToStartRound}). Triggering pre-round countdown.`);
+                        this.initiatePreRoundCountdown();
+                    } else {
+                        console.log(`${this.now()}: Not enough players yet (${this.cars.size}/${this.minPlayersToStartRound}). Still waiting.`);
+                        this.publish("game", "waiting-for-players", { current: this.cars.size, needed: this.minPlayersToStartRound });
+                    }
+                }
+            }
+
+            handleViewExit(exitingViewId) {
+                const viewId = exitingViewId;
+                console.log(`${this.now()}: View ${viewId} exited.`);
+                const carExisted = this.cars.has(viewId);
+
+                if (carExisted) {
+                    const car = this.cars.get(viewId);
+                    if (car) car.destroy();
+                    this.cars.delete(viewId);
+                    this.currentRacerViewIds.delete(viewId); // Remove from racers if they were one
+                    this.publish("game", "car-removed", { viewId: viewId });
+                    console.log(`${this.now()}: Car for ${viewId} removed. Total cars now: ${this.cars.size}. Racers left: ${this.currentRacerViewIds.size}`);
+                }
+
+                if (this.cars.size === 1 && (this.gameRunning || this.isRestarting || this.isPreRoundCountdown)) {
+                    console.log(`${this.now()}: Only one player left. Transitioning to waiting state.`);
+                    this.gameRunning = false;
+                    this.isRestarting = false;
+                    this.isPreRoundCountdown = false;
+                    this.winnerViewId = null;
+                    this.currentRacerViewIds.clear();
+                    this.publish("game", "waiting-for-players", { current: 1, needed: this.minPlayersToStartRound });
+                    this.future(MODEL_TICK_MS).updateGame();
+                    return;
+                }
+
+                if (this.isPreRoundCountdown && this.cars.size < this.minPlayersToStartRound) {
+                    console.log(`${this.now()}: Player left during pre-round, not enough to start. Cancelling pre-round.`);
+                    this.isPreRoundCountdown = false;
+                    this.currentRacerViewIds.clear();
+                    this.publish("game", "waiting-for-players", { current: this.cars.size, needed: this.minPlayersToStartRound });
+                } else if (this.gameRunning && !this.isRestarting && carExisted) {
+                     // If the exited player was a racer, currentRacerViewIds.size would have reduced.
+                    this.checkWinCondition(); // Check win, as a racer might have left
+                } else if (!this.gameRunning && !this.isRestarting && !this.isPreRoundCountdown) {
+                    this.publish("game", "waiting-for-players", { current: this.cars.size, needed: this.minPlayersToStartRound });
+                }
+            }
+
+            updateGame() {
+                if (this.isPreRoundCountdown) {
+                    if (this.now() >= this.preRoundEndTime) {
+                        this.isPreRoundCountdown = false;
+                        this.attemptFullRoundStart();
+                    } else {
+                        const timeLeft = Math.ceil((this.preRoundEndTime - this.now()) / 1000);
+                        this.publish("game", "countdown-update", { timeLeft, type: "pre-round" });
+                        this.future(1000).updateGame();
+                        return;
+                    }
+                } else if (this.isRestarting) {
+                    if (this.now() >= this.restartTime) {
+                        this.isRestarting = false;
+                        this.attemptFullRoundStart();
+                    } else {
+                        const timeLeft = Math.ceil((this.restartTime - this.now()) / 1000);
+                        this.publish("game", "countdown-update", { timeLeft, type: "restart" });
+                        this.future(1000).updateGame();
+                        return;
+                    }
+                }
+
+                if (!this.gameRunning) {
+                    if (this.winnerViewId !== null && this.winnerViewId !== undefined && !this.isRestarting && !this.isPreRoundCountdown) {
+                        if (this.cars.size >= this.minPlayersToStartRound) {
+                            this.startRestartCountdown();
+                        } else if (this.cars.size > 0) {
+                            this.currentRacerViewIds.clear(); // Clear racers as game ended without enough for restart
+                            this.publish("game", "game-over", { winnerViewId: this.winnerViewId, restartingIn: -1 });
+                            this.publish("game", "waiting-for-players", { current: this.cars.size, needed: this.minPlayersToStartRound });
+                        } else {
+                             this.currentRacerViewIds.clear();
+                        }
+                    }
+                    this.future(MODEL_TICK_MS).updateGame();
+                    return;
+                }
+
+                const carArray = Array.from(this.cars.values());
+                carArray.forEach(car => { if (this.currentRacerViewIds.has(car.viewId) && !car.isDestroyed) car.update(); }); // Only update active racers
+
+                for (let i = 0; i < carArray.length; i++) {
+                    for (let j = i + 1; j < carArray.length; j++) {
+                        const carA = carArray[i]; const carB = carArray[j];
+                        // Only check collisions between active racers
+                        if (this.currentRacerViewIds.has(carA.viewId) && this.currentRacerViewIds.has(carB.viewId) &&
+                            !carA.isDestroyed && !carB.isDestroyed && this.checkCarCollision(carA, carB)) {
+                            this.resolveCarCollision(carA, carB);
+                        }
+                    }
+                }
+                carArray.forEach(car => { // Publish all car states for view, even spectators
+                     this.publish(car.id, "state-update", { x: car.x, y: car.y, angle: car.angle, speed: car.speed, damage: car.damage, isDestroyed: car.isDestroyed, visualIndex: car.visualIndex });
+                });
+                this.checkWinCondition();
+                this.future(MODEL_TICK_MS).updateGame();
+            }
+
+            startRestartCountdown() {
+                this.isRestarting = true;
+                this.gameRunning = false;
+                this.isPreRoundCountdown = false;
+                // currentRacerViewIds will be cleared by executeRoundStartProcedure or if waiting state is entered
+                this.restartTime = this.now() + GAME_RESTART_DELAY_MS;
+                this.publish("game", "game-over", { winnerViewId: this.winnerViewId, restartingIn: GAME_RESTART_DELAY_MS / 1000 });
+                console.log(`${this.now()}: Starting restart countdown. Winner: ${this.winnerViewId}`);
+            }
+
+            checkCarCollision(carA, carB) {
+                const dx = carA.x - carB.x; const dy = carA.y - carB.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const carARadius = (COLLISION_WIDTH + COLLISION_HEIGHT) / 4 * 0.85;
+                const carBRadius = (COLLISION_WIDTH + COLLISION_HEIGHT) / 4 * 0.85;
+                return distance < (carARadius + carBRadius);
+            }
+
+            resolveCarCollision(carA, carB) {
+                const angleDiff = Math.atan2(carB.y - carA.y, carB.x - carA.x);
+                const impactSpeedA = carA.speed; const impactSpeedB = carB.speed;
+                let damageToB = 0; let damageToA = 0;
+                const carAAngleToB = (angleDiff - carA.angle + 4 * Math.PI) % (2 * Math.PI);
+                const carBAngleToA = (angleDiff + Math.PI - carB.angle + 4 * Math.PI) % (2 * Math.PI);
+                let baseDamageDealtByA = 0;
+                if (carAAngleToB > 7*Math.PI/4 || carAAngleToB < Math.PI/4) baseDamageDealtByA=4; else if (carAAngleToB > 3*Math.PI/4 && carAAngleToB < 5*Math.PI/4) baseDamageDealtByA=3; else baseDamageDealtByA=2;
+                if (carA.damage < 10 && carB.damage >= 10) damageToB=(baseDamageDealtByA===4)?3:(baseDamageDealtByA===3)?2:1; else damageToB=baseDamageDealtByA;
+                damageToB *= Math.max(0.1, Math.min(1, (impactSpeedA + 0.5) / (MAX_SPEED * 0.5)));
+                let baseDamageDealtByB = 0;
+                if (carBAngleToA > 7*Math.PI/4 || carBAngleToA < Math.PI/4) baseDamageDealtByB=4; else if (carBAngleToA > 3*Math.PI/4 && carBAngleToA < 5*Math.PI/4) baseDamageDealtByB=3; else baseDamageDealtByB=2;
+                if (carB.damage < 10 && carA.damage >= 10) damageToA=(baseDamageDealtByB===4)?3:(baseDamageDealtByB===3)?2:1; else damageToA=baseDamageDealtByB;
+                damageToA *= Math.max(0.1, Math.min(1, (impactSpeedB + 0.5) / (MAX_SPEED * 0.5)));
+                carA.applyDamage(damageToA); carB.applyDamage(damageToB);
+                const distance = Math.sqrt(Math.pow(carA.x-carB.x,2)+Math.pow(carA.y-carB.y,2))||1;
+                const collisionRadiusSum = ((COLLISION_WIDTH + COLLISION_HEIGHT) / 4 * 0.85) * 2;
+                const overlap = collisionRadiusSum - distance;
+                if(overlap > 0){
+                    const pushFactor=0.55; const pushX=(carA.x-carB.x)/distance*overlap*pushFactor; const pushY=(carA.y-carB.y)/distance*overlap*pushFactor;
+                    carA.x+=pushX; carA.y+=pushY; carB.x-=pushX; carB.y-=pushY;
+                }
+                const totalImpact=impactSpeedA+impactSpeedB;
+                if(totalImpact > 0.5){
+                    carA.speed*=0.70; carB.speed*=0.70;
+                    const momentumTransferFactor=0.03;
+                    carA.x += Math.cos(carB.angle)*impactSpeedB*momentumTransferFactor + Math.cos(carA.angle+Math.PI)*totalImpact*momentumTransferFactor*0.5;
+                    carA.y += Math.sin(carB.angle)*impactSpeedB*momentumTransferFactor + Math.sin(carA.angle+Math.PI)*totalImpact*momentumTransferFactor*0.5;
+                    carB.x += Math.cos(carA.angle)*impactSpeedA*momentumTransferFactor + Math.cos(carB.angle+Math.PI)*totalImpact*momentumTransferFactor*0.5;
+                    carB.y += Math.sin(carA.angle)*impactSpeedA*momentumTransferFactor + Math.sin(carB.angle+Math.PI)*totalImpact*momentumTransferFactor*0.5;
+                }
+                this.publish("game","collision-event",{carA_id:carA.id,carB_id:carB.id,carA_damage:carA.damage,carB_damage:carB.damage});
+            }
+
+            checkWinCondition() {
+                if (!this.gameRunning || this.isRestarting || this.isPreRoundCountdown) return;
+                if (this.now() < this.gameStartTime + 2000) return;
+
+                const activeDesignatedRacers = Array.from(this.cars.values()).filter(car => {
+                    return this.currentRacerViewIds.has(car.viewId) && !car.isDestroyed;
+                });
+
+                // this.roundCarCount is the number of players who *started* this round as racers.
+                if (this.roundCarCount < this.minPlayersToCompeteForWin) {
+                    if (this.roundCarCount === 1) { // Round started with 1 designated racer
+                        if (activeDesignatedRacers.length === 0) { // The solo designated racer got destroyed
+                            this.gameRunning = false;
+                            this.winnerViewId = null;
+                            console.log(`${this.now()}: Solo designated racer in round destroyed. Round over (no winner).`);
+                        }
+                    } else if (this.roundCarCount === 0 && this.cars.size > 0) { // Should not happen if logic is correct
+                        this.gameRunning = false;
+                        this.winnerViewId = null;
+                        console.log(`${this.now()}: Round had 0 official racers. Ending round.`);
+                    }
+                    return;
+                }
+
+                if (activeDesignatedRacers.length <= 1) {
+                    this.gameRunning = false;
+                    this.winnerViewId = activeDesignatedRacers.length === 1 ? activeDesignatedRacers[0].viewId : null;
+                    console.log(`${this.now()}: Win condition met. Winner: ${this.winnerViewId}. Active designated racers: ${activeDesignatedRacers.length}, Round started with: ${this.roundCarCount}`);
+                }
+            }
+        }
+        DerbyGame.register("DerbyGame");
+
+        class CarModel extends Multisynq.Model {
+            init({ viewId, x, y, color, angle, visualIndex }) {
+                this.viewId = viewId; this.color = color || PLAYER_COLORS[0];
+                this.visualIndex = visualIndex === undefined ? 0 : visualIndex;
+                this.resetState(x,y,angle);
+                this.controls = { forward:false, brake:false, left:false, right:false };
+                this.subscribe(this.id, "control-input", this.handleControlInput);
+            }
+            resetState(x,y,angle){
+                this.x=x; this.y=y; this.angle = angle===undefined ? 0 : angle;
+                this.speed=0; this.damage=0; this.isDestroyed=false; this.maxSpeed=MAX_SPEED;
+                console.log(`Car ${this.id} (view: ${this.viewId}) reset. Pos: ${this.x.toFixed(1)},${this.y.toFixed(1)} Angle: ${this.angle.toFixed(2)} Dmg: ${this.damage} Color: ${this.color} VisualIndex: ${this.visualIndex}`);
+            }
+            handleControlInput(controls){ if(this.isDestroyed){this.controls={forward:false,brake:false,left:false,right:false};return;} this.controls=controls; }
+            applyDamage(amount){
+                if(this.isDestroyed||amount<=0)return; this.damage=Math.min(20,this.damage+amount);
+                if(this.damage>=15)this.maxSpeed=MAX_SPEED/2; else this.maxSpeed=MAX_SPEED;
+                if(this.damage>=20){
+                    this.isDestroyed=true; this.speed=0; this.controls={forward:false,brake:false,left:false,right:false};
+                    const gameModel=this.wellKnownModel("modelRoot"); if(gameModel){gameModel.publish(this.id,"car-destroyed",{viewId:this.viewId,id:this.id});}
+                }
+            }
+            update(){
+                if(this.isDestroyed){this.speed=0;return;}
+                if(this.controls.forward)this.speed=Math.min(this.maxSpeed,this.speed+ACCELERATION);
+                else if(this.controls.brake)this.speed=Math.max(0,this.speed-NATURAL_DECELERATION*BRAKE_DECELERATION_FACTOR);
+                else this.speed=Math.max(0,this.speed-NATURAL_DECELERATION);
+
+                if(this.speed > 0.05){
+                    if(this.controls.left)this.angle-=TURN_SPEED;
+                    if(this.controls.right)this.angle+=TURN_SPEED;
+                }
+                this.angle=(this.angle+2*Math.PI)%(2*Math.PI);
+                const movementAngle = this.angle;
+                this.x+=this.speed*Math.cos(movementAngle);
+                this.y+=this.speed*Math.sin(movementAngle);
+                this.handleOvalBounds();
+            }
+            handleOvalBounds() {
+                const carBodyWidth = COLLISION_WIDTH / 2;
+                const carBodyHeight = COLLISION_HEIGHT / 2;
+                const carCheckRadius = Math.max(carBodyWidth, carBodyHeight) * 0.7;
+                if (this.y - carCheckRadius < ARENA_PADDING) { this.y = ARENA_PADDING + carCheckRadius; this.speed *= WALL_BOUNCE_FACTOR; if (Math.abs(Math.sin(this.angle)) > 0.1) this.angle = (2 * Math.PI - this.angle) % (2*Math.PI); }
+                if (this.y + carCheckRadius > WORLD_HEIGHT - ARENA_PADDING) { this.y = WORLD_HEIGHT - ARENA_PADDING - carCheckRadius; this.speed *= WALL_BOUNCE_FACTOR; if (Math.abs(Math.sin(this.angle)) > 0.1) this.angle = (2 * Math.PI - this.angle) % (2*Math.PI); }
+                if (this.x - carCheckRadius < ARENA_PADDING) { this.x = ARENA_PADDING + carCheckRadius; this.speed *= WALL_BOUNCE_FACTOR; if (Math.abs(Math.cos(this.angle)) > 0.1) this.angle = (Math.PI - this.angle + 2*Math.PI) % (2*Math.PI); }
+                if (this.x + carCheckRadius > WORLD_WIDTH - ARENA_PADDING) { this.x = WORLD_WIDTH - ARENA_PADDING - carCheckRadius; this.speed *= WALL_BOUNCE_FACTOR; if (Math.abs(Math.cos(this.angle)) > 0.1) this.angle = (Math.PI - this.angle + 2*Math.PI) % (2*Math.PI); }
+                const innerWorldX = ARENA_PADDING + TRACK_THICKNESS;
+                const innerWorldY = ARENA_PADDING + TRACK_THICKNESS;
+                const innerWorldWidth = WORLD_WIDTH - 2 * (ARENA_PADDING + TRACK_THICKNESS);
+                const innerWorldHeight = WORLD_HEIGHT - 2 * (ARENA_PADDING + TRACK_THICKNESS);
+                const carLeft = this.x - carBodyWidth;
+                const carRight = this.x + carBodyWidth;
+                const carTop = this.y - carBodyHeight;
+                const carBottom = this.y + carBodyHeight;
+                const innerRectLeft = innerWorldX;
+                const innerRectRight = innerWorldX + innerWorldWidth;
+                const innerRectTop = innerWorldY;
+                const innerRectBottom = innerWorldY + innerWorldHeight;
+                if (carRight > innerRectLeft && carLeft < innerRectRight && carBottom > innerRectTop && carTop < innerRectBottom) {
+                    const overlapLeft = carRight - innerRectLeft;
+                    const overlapRight = innerRectRight - carLeft;
+                    const overlapTop = carBottom - innerRectTop;
+                    const overlapBottom = innerRectBottom - carTop;
+                    const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+                    if (minOverlap === overlapLeft) this.x = innerRectLeft - carBodyWidth;
+                    else if (minOverlap === overlapRight) this.x = innerRectRight + carBodyWidth;
+                    else if (minOverlap === overlapTop) this.y = innerRectTop - carBodyHeight;
+                    else if (minOverlap === overlapBottom) this.y = innerRectBottom + carBodyHeight;
+                    this.speed *= WALL_BOUNCE_FACTOR;
+                }
+            }
+            distToPoint(px,py){ const dx=this.x-px; const dy=this.y-py; return Math.sqrt(dx*dx+dy*dy); }
+            destroy(){ this.unsubscribeAll(); super.destroy(); }
+        }
+        CarModel.register("CarModel");
+
+        class DerbyView extends Multisynq.View {
+            constructor(model) {
+                super(model);
+                this.model = model; this.canvas = document.getElementById('game-canvas'); this.ctx = this.canvas.getContext('2d');
+                this.damageHud = document.getElementById('player-damage-hud');
+                this.centerMessageDisplay = document.getElementById('center-message-display');
+                this.gameOverTextElement = document.getElementById('game-over-text');
+                this.countdownTimerTextElement = document.getElementById('countdown-timer-text');
+                this.cars = new Map();
+                this.myViewId = this.viewId; this.myCarModelId = null;
+
+                this.isCurrentlyGameOver = false;
+                this.isSpectator = false;
+                this.isWaitingForPlayers = true;
+                this.isPreRoundActive = false;
+
+                this.localControls = { forward: false, brake: false, left: false, right: false };
+                this.resizeCanvas(); window.addEventListener('resize', () => this.resizeCanvas());
+                this.setupInputListeners();
+
+                this.subscribe("game", "waiting-for-players", this.handleWaitingForPlayers.bind(this));
+                this.subscribe("game", "pre-round-started", this.handlePreRoundStarted.bind(this));
+                this.subscribe("game", "round-start", this.handleRoundStart.bind(this));
+                this.subscribe("game", "game-over", this.handleGameOverSignal.bind(this));
+                this.subscribe("game", "countdown-update", this.handleCountdownUpdate.bind(this));
+                this.subscribe("game", "car-added", this.handleCarAdded.bind(this));
+                this.subscribe("game", "car-removed", this.handleCarRemoved.bind(this));
+                this.subscribe("game", "collision-event", this.handleCollisionFX.bind(this));
+                this.subscribe(this.myViewId, "spectator-mode", this.handleSpectatorMode.bind(this));
+                this.subscribe(this.myViewId, "sync-pre-round-countdown", this.handleSyncPreRoundCountdown.bind(this));
+                this.subscribe(this.myViewId, "sync-restart-countdown", this.handleSyncRestartCountdown.bind(this));
+
+                console.log(`View (${this.myViewId}) constructor: Initializing. Model gameRunning: ${this.model.gameRunning}, isRestarting: ${this.model.isRestarting}, isPreRound: ${this.model.isPreRoundCountdown}`);
+
+                this.model.cars.forEach(carModelInstance => {
+                    let isCarRacing = false;
+                    if (this.model.gameRunning && this.model.currentRacerViewIds.has(carModelInstance.viewId)) {
+                         isCarRacing = true;
+                    }
+                    this.handleCarAdded({
+                        viewId: carModelInstance.viewId, id: carModelInstance.id, x: carModelInstance.x, y: carModelInstance.y,
+                        color: carModelInstance.color, angle: carModelInstance.angle,
+                        damage: carModelInstance.damage, isDestroyed: carModelInstance.isDestroyed,
+                        visualIndex: carModelInstance.visualIndex,
+                        isRacing: isCarRacing
+                    });
+                });
+
+                const myCarData = this.cars.get(this.myViewId);
+                if (this.model.isPreRoundCountdown) {
+                    const timeLeft = Math.max(0, Math.ceil((this.model.preRoundEndTime - this.model.now()) / 1000));
+                    this.handleSyncPreRoundCountdown({ timeLeft });
+                } else if (this.model.isRestarting) {
+                    const timeLeft = Math.max(0, Math.ceil((this.model.restartTime - this.model.now()) / 1000));
+                    this.handleSyncRestartCountdown({ winnerViewId: this.model.winnerViewId, timeLeft });
+                } else if (this.model.gameRunning) {
+                    if (myCarData && !myCarData.isRacing) {
+                        this.handleSpectatorMode({ message: "Game in progress. Spectating." });
+                    } else if (myCarData && myCarData.isRacing) {
+                         this.handleRoundStart();
+                    }
+                } else {
+                    this.handleWaitingForPlayers({ current: this.model.cars.size, needed: this.model.minPlayersToStartRound });
+                }
+                requestAnimationFrame(() => this.drawGame());
+            }
+
+            resizeCanvas() {
+                const aspectRatio = WORLD_WIDTH / WORLD_HEIGHT;
+                const container = document.getElementById('game-container');
+                const maxWidth = container.clientWidth; const maxHeight = container.clientHeight;
+                let newWidth = maxWidth; let newHeight = newWidth / aspectRatio;
+                if (newHeight > maxHeight) { newHeight = maxHeight; newWidth = newHeight * aspectRatio; }
+                this.canvas.width = newWidth; this.canvas.height = newHeight;
+                this.scaleFactor = newWidth / WORLD_WIDTH;
+                OVAL_SPECS_VIEW_ONLY.outerRectX = ARENA_PADDING; OVAL_SPECS_VIEW_ONLY.outerRectY = ARENA_PADDING;
+                OVAL_SPECS_VIEW_ONLY.outerRectWidth = WORLD_WIDTH - 2 * ARENA_PADDING; OVAL_SPECS_VIEW_ONLY.outerRectHeight = WORLD_HEIGHT - 2 * ARENA_PADDING;
+                OVAL_SPECS_VIEW_ONLY.cornerRadiusOuter = Math.min(OVAL_SPECS_VIEW_ONLY.outerRectWidth, OVAL_SPECS_VIEW_ONLY.outerRectHeight) / 2;
+                OVAL_SPECS_VIEW_ONLY.innerRectX = ARENA_PADDING + TRACK_THICKNESS; OVAL_SPECS_VIEW_ONLY.innerRectY = ARENA_PADDING + TRACK_THICKNESS;
+                OVAL_SPECS_VIEW_ONLY.innerRectWidth = WORLD_WIDTH - 2 * (ARENA_PADDING + TRACK_THICKNESS); OVAL_SPECS_VIEW_ONLY.innerRectHeight = WORLD_HEIGHT - 2 * (ARENA_PADDING + TRACK_THICKNESS);
+                OVAL_SPECS_VIEW_ONLY.cornerRadiusInner = Math.min(OVAL_SPECS_VIEW_ONLY.innerRectWidth, OVAL_SPECS_VIEW_ONLY.innerRectHeight) / 2;
+                if (OVAL_SPECS_VIEW_ONLY.cornerRadiusInner < 0) OVAL_SPECS_VIEW_ONLY.cornerRadiusInner = 0;
+                if (OVAL_SPECS_VIEW_ONLY.innerRectWidth < 0) OVAL_SPECS_VIEW_ONLY.innerRectWidth = 0;
+                if (OVAL_SPECS_VIEW_ONLY.innerRectHeight < 0) OVAL_SPECS_VIEW_ONLY.innerRectHeight = 0;
+            }
+
+            setupInputListeners() {
+                window.addEventListener('keydown', (e) => {
+                    if (this.isSpectator || this.isCurrentlyGameOver || this.isPreRoundActive || this.isWaitingForPlayers) {
+                         if (this.model.isRestarting && this.isCurrentlyGameOver) { }
+                         else if (this.model.isPreRoundCountdown && this.isPreRoundActive) { }
+                         else return;
+                    }
+                    if (e.repeat) return; let changed = true;
+                    switch (e.key.toLowerCase()) {
+                        case 'arrowup': case 'w': this.localControls.forward = true; break;
+                        case 'arrowdown': case 's': this.localControls.brake = true; break;
+                        case 'arrowleft': case 'a': this.localControls.left = true; break;
+                        case 'arrowright': case 'd': this.localControls.right = true; break;
+                        default: changed = false;
+                    }
+                    if (changed && this.myCarModelId) this.publish(this.myCarModelId, "control-input", { ...this.localControls });
+                });
+                window.addEventListener('keyup', (e) => {
+                    let changed = true;
+                    switch (e.key.toLowerCase()) {
+                        case 'arrowup': case 'w': this.localControls.forward = false; break;
+                        case 'arrowdown': case 's': this.localControls.brake = false; break;
+                        case 'arrowleft': case 'a': this.localControls.left = false; break;
+                        case 'arrowright': case 'd': this.localControls.right = false; break;
+                        default: changed = false;
+                    }
+                     if (changed && this.myCarModelId && !this.isSpectator) this.publish(this.myCarModelId, "control-input", { ...this.localControls });
+                });
+                const controlsMap = {'btn-fwd':'forward','btn-brake':'brake','btn-left':'left','btn-right':'right'};
+                Object.keys(controlsMap).forEach(btnId => {
+                    const button = document.getElementById(btnId); if (!button) return;
+                    const controlKey = controlsMap[btnId];
+                    const startHandler = (e) => { e.preventDefault();
+                        if (this.isSpectator || this.isCurrentlyGameOver || this.isPreRoundActive || this.isWaitingForPlayers) {
+                            if (this.model.isRestarting && this.isCurrentlyGameOver) {} else if (this.model.isPreRoundCountdown && this.isPreRoundActive) {} else return;
+                        }
+                        this.localControls[controlKey] = true; if (this.myCarModelId) this.publish(this.myCarModelId, "control-input", { ...this.localControls }); };
+                    const endHandler = (e) => { e.preventDefault();
+                        this.localControls[controlKey] = false; if (this.myCarModelId && !this.isSpectator) this.publish(this.myCarModelId, "control-input", { ...this.localControls });};
+                    button.addEventListener('touchstart', startHandler, { passive: false }); button.addEventListener('mousedown', startHandler);
+                    button.addEventListener('touchend', endHandler); button.addEventListener('mouseup', endHandler);
+                    button.addEventListener('touchcancel', endHandler);
+                    button.addEventListener('mouseleave', (e) => { if (this.localControls[controlKey] && (e.buttons === undefined || e.buttons === 0) ) { if (e.type.startsWith('mouse')) { if(e.buttons === 0) endHandler(e); } else { endHandler(e);}}});
+                });
+            }
+
+            handleCarAdded({ viewId, id, x, y, color, angle, damage, isDestroyed, visualIndex, isRacing }) {
+                let carObj = this.cars.get(viewId);
+                const isMyCar = (viewId === this.myViewId);
+
+                if (!carObj) {
+                    carObj = { subscriptions: [] };
+                    this.cars.set(viewId, carObj);
+                } else {
+                    if (carObj.modelId !== id) {
+                        console.warn(`View (${this.myViewId}): Car ${viewId} modelId changed from ${carObj.modelId} to ${id}. Re-subscribing.`);
+                        this.unsubscribeCarEvents(carObj);
+                    }
+                }
+                carObj.modelId = id; carObj.viewId = viewId;
+                carObj.x = x; carObj.y = y; carObj.targetX = x; carObj.targetY = y;
+                carObj.color = color;
+                carObj.angle = angle; carObj.targetAngle = angle;
+                carObj.damage = damage; carObj.isDestroyed = isDestroyed;
+                carObj.visualIndex = visualIndex === undefined ? 0 : visualIndex;
+                carObj.isRacing = isRacing === undefined ? false : isRacing;
+                carObj.lastUpdate = this.now();
+
+                this.subscribeToSpecificCarUpdates(carObj, id, viewId);
+
+                if (isMyCar) {
+                    this.myCarModelId = id;
+                    if (!carObj.isRacing) {
+                        this.isSpectator = true;
+                        if (!this.isCurrentlyGameOver && !this.isPreRoundActive && !this.isWaitingForPlayers) {
+                           this.damageHud.textContent = "Spectating";
+                        }
+                    } else {
+                        this.isSpectator = false;
+                        this.damageHud.textContent = isDestroyed ? `WRECKED!` : `Damage: ${Math.round(damage)}`;
+                    }
+                    if ((this.isWaitingForPlayers || this.isPreRoundActive) && this.model.gameRunning && carObj.isRacing) {
+                        this.handleRoundStart();
+                    }
+                }
+            }
+
+            unsubscribeCarEvents(carObj) {
+                if (carObj.subscriptions) {
+                    carObj.subscriptions.forEach(sub => { this.unsubscribe(sub.scope, sub.event, sub.handler); });
+                    carObj.subscriptions = [];
+                }
+            }
+
+            subscribeToSpecificCarUpdates(carObj, carModelId, targetViewId) {
+                this.unsubscribeCarEvents(carObj);
+                const stateUpdateHandler = (data) => this.updateCarState(targetViewId, data);
+                this.subscribe(carModelId, "state-update", stateUpdateHandler);
+                carObj.subscriptions.push({scope: carModelId, event: "state-update", handler: stateUpdateHandler});
+                const destroyHandler = (data) => {
+                    const carToUpdate = this.cars.get(data.viewId);
+                    if(carToUpdate && data.id === carModelId) {
+                        carToUpdate.isDestroyed = true;
+                        if(data.viewId === this.myViewId && !this.isSpectator) { this.damageHud.textContent = `WRECKED!`; }
+                    }
+                };
+                this.subscribe(carModelId, "car-destroyed", destroyHandler);
+                carObj.subscriptions.push({scope: carModelId, event: "car-destroyed", handler: destroyHandler});
+            }
+
+            updateCarState(viewIdToUpdate, { x, y, angle, speed, damage, isDestroyed, visualIndex }) {
+                const car = this.cars.get(viewIdToUpdate);
+                if (car) {
+                    car.targetX = x; car.targetY = y; car.targetAngle = angle;
+                    car.damage = damage; car.isDestroyed = isDestroyed;
+                    if (visualIndex !== undefined) car.visualIndex = visualIndex;
+                    if (typeof car.x === 'undefined') { car.x = x; car.y = y; car.angle = angle; }
+                    if (viewIdToUpdate === this.myViewId && !this.isSpectator) {
+                        if (isDestroyed) { this.damageHud.textContent = `WRECKED!`; }
+                        else { this.damageHud.textContent = `Damage: ${Math.round(damage)}`; }
+                    }
+                }
+            }
+
+            handleCarRemoved({ viewId }) {
+                const carObj = this.cars.get(viewId);
+                if (carObj) { this.unsubscribeCarEvents(carObj); this.cars.delete(viewId); console.log(`View (${this.myViewId}): Visual for car ${viewId} removed.`); }
+                if (viewId === this.myViewId) { this.myCarModelId = null; this.damageHud.textContent = "Disconnected"; this.isSpectator = true; }
+            }
+
+            handleCollisionFX(data) { /* Add FX later */ }
+
+            handleSpectatorMode({message}) {
+                this.isSpectator = true;
+                this.isCurrentlyGameOver = false;
+                this.isWaitingForPlayers = false;
+                this.isPreRoundActive = false;
+                this.damageHud.textContent = message || "Spectating";
+                this.centerMessageDisplay.style.display = 'block';
+                this.gameOverTextElement.textContent = "Spectating";
+                this.countdownTimerTextElement.textContent = "Waiting for next round...";
+            }
+
+            handleWaitingForPlayers({current, needed}) {
+                this.isWaitingForPlayers = true;
+                this.isCurrentlyGameOver = false;
+                this.isPreRoundActive = false;
+                this.isSpectator = false;
+                this.centerMessageDisplay.style.display = 'block';
+                this.gameOverTextElement.textContent = `Waiting for Players...`;
+                this.countdownTimerTextElement.textContent = `${current} / ${needed}`;
+                this.damageHud.textContent = "Damage: 0";
+            }
+
+            handlePreRoundStarted({ duration }) {
+                this.isPreRoundActive = true;
+                this.isWaitingForPlayers = false;
+                this.isCurrentlyGameOver = false;
+                this.isSpectator = false;
+                this.centerMessageDisplay.style.display = 'block';
+                this.gameOverTextElement.textContent = "Get Ready!";
+                this.countdownTimerTextElement.textContent = `Starting in: ${Math.round(duration / 1000)}`; // ensure integer
+                 const myCarData = this.cars.get(this.myViewId);
+                if (myCarData && !this.isSpectator) {
+                    this.damageHud.textContent = myCarData.isDestroyed ? `WRECKED!` : `Damage: ${Math.round(myCarData.damage)}`;
+                } else if (!myCarData) {
+                    this.damageHud.textContent = "Joining...";
+                }
+            }
+            handleSyncPreRoundCountdown({ timeLeft }) {
+                this.isPreRoundActive = true;
+                this.isWaitingForPlayers = false;
+                this.isCurrentlyGameOver = false;
+                this.isSpectator = false;
+                this.centerMessageDisplay.style.display = 'block';
+                this.gameOverTextElement.textContent = "Get Ready!";
+                this.countdownTimerTextElement.textContent = `Starting in: ${timeLeft}`;
+                 const myCarData = this.cars.get(this.myViewId);
+                if (myCarData && !this.isSpectator) {
+                     this.damageHud.textContent = myCarData.isDestroyed ? `WRECKED!` : `Damage: ${Math.round(myCarData.damage)}`;
+                } else { this.damageHud.textContent = "Joining..."; }
+            }
+
+            handleSyncRestartCountdown({ winnerViewId, timeLeft }) {
+                this.isCurrentlyGameOver = true;
+                this.isWaitingForPlayers = false;
+                this.isPreRoundActive = false;
+                this.centerMessageDisplay.style.display = 'block';
+                let winnerMsg = "Game Over!";
+                if (winnerViewId) {
+                    const winnerCar = this.cars.get(winnerViewId);
+                    if (winnerCar && winnerCar.viewId === this.myViewId) winnerMsg = "YOU WIN! 🏆";
+                    else if (winnerCar) {
+                        const carVisualIndex = winnerCar.visualIndex !== undefined ? winnerCar.visualIndex : 0;
+                        winnerMsg = `${CAR_IMAGE_PATHS[carVisualIndex % CAR_IMAGE_PATHS.length].split('/').pop().split('.')[0]} WINS!`;
+                    } else winnerMsg = `Player WINS!`;
+                } else winnerMsg = "It's a DRAW!";
+                this.gameOverTextElement.textContent = winnerMsg;
+                this.countdownTimerTextElement.textContent = `Next round in: ${timeLeft}`;
+            }
+
+            handleGameOverSignal({ winnerViewId, restartingIn }) {
+                this.isCurrentlyGameOver = true;
+                this.isWaitingForPlayers = false;
+                this.isPreRoundActive = false;
+                this.centerMessageDisplay.style.display = 'block';
+                let winnerMsg = "Game Over!";
+                if (winnerViewId) {
+                    const winnerCar = this.cars.get(winnerViewId);
+                    if (winnerCar && winnerCar.viewId === this.myViewId) winnerMsg = "YOU WIN! 🏆";
+                    else if (winnerCar) {
+                        const carVisualIndex = winnerCar.visualIndex !== undefined ? winnerCar.visualIndex : 0;
+                        winnerMsg = `${CAR_IMAGE_PATHS[carVisualIndex % CAR_IMAGE_PATHS.length].split('/').pop().split('.')[0]} WINS!`;
+                    } else winnerMsg = `Player WINS!`;
+                } else winnerMsg = "It's a DRAW!";
+                this.gameOverTextElement.textContent = winnerMsg;
+
+                if (restartingIn === -1) {
+                    this.countdownTimerTextElement.textContent = `Waiting for more players...`;
+                } else {
+                    this.countdownTimerTextElement.textContent = `Next round in: ${restartingIn}`;
+                }
+            }
+
+            handleCountdownUpdate({ timeLeft, type }) {
+                if (type === "pre-round" && this.isPreRoundActive) {
+                    this.countdownTimerTextElement.textContent = `Starting in: ${timeLeft}`;
+                } else if (type === "restart" && this.isCurrentlyGameOver) {
+                    this.countdownTimerTextElement.textContent = `Next round in: ${timeLeft}`;
+                } else if (this.isWaitingForPlayers) {
+                    this.countdownTimerTextElement.textContent = `${this.model.cars.size} / ${this.model.minPlayersToStartRound}`;
+                }
+            }
+
+            handleRoundStart() {
+                this.isCurrentlyGameOver = false;
+                this.isWaitingForPlayers = false;
+                this.isPreRoundActive = false;
+                this.centerMessageDisplay.style.display = 'none';
+
+                const myCarData = this.cars.get(this.myViewId);
+                if (myCarData) {
+                    if (myCarData.isRacing) {
+                        this.isSpectator = false;
+                        this.damageHud.textContent = myCarData.isDestroyed ? `WRECKED!` : `Damage: ${Math.round(myCarData.damage)}`;
+                    } else {
+                        this.isSpectator = true;
+                        this.damageHud.textContent = "Spectating";
+                        this.handleSpectatorMode({ message: "Round full. Spectating."});
+
+                    }
+                } else {
+                    this.isSpectator = true;
+                    this.damageHud.textContent = "Joining...";
+                }
+            }
+
+            drawGame() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); this.ctx.save(); this.ctx.scale(this.scaleFactor, this.scaleFactor);
+                this.drawOvalArena();
+                this.cars.forEach(car => {
+                    // Only draw if car has coordinates AND (it's racing OR it's my car (even if spectator/waiting) OR it's a spectator not at default -1000,-1000)
+                    if (typeof car.x === 'undefined' || typeof car.y === 'undefined') return;
+                    if (!car.isRacing && car.viewId !== this.myViewId && car.x === -1000 && car.y === -1000) {
+                        return;
+                    }
+
+                    if (typeof car.targetX !== 'undefined') {
+                        car.x += (car.targetX - car.x) * 0.5; car.y += (car.targetY - car.y) * 0.5;
+                        let angleDiff = car.targetAngle - car.angle;
+                        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI; while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                        car.angle += angleDiff * 0.5;
+                    }
+                    const imgToDraw = CAR_IMAGES[car.visualIndex % CAR_IMAGES.length];
+                    if (imgToDraw && imgToDraw.complete) {
+                        this.ctx.save(); this.ctx.translate(car.x, car.y);
+                        this.ctx.rotate(car.angle + Math.PI / 2);
+                        const drawWidth = imgToDraw.width * CAR_VISUAL_SCALE;
+                        const drawHeight = imgToDraw.height * CAR_VISUAL_SCALE;
+                        if (car.isDestroyed) {
+                            this.ctx.globalAlpha = 0.5;
+                            this.ctx.drawImage(imgToDraw, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                            this.ctx.globalAlpha = 1.0;
+                            this.ctx.font = `${COLLISION_HEIGHT * CAR_VISUAL_SCALE * 1.2}px sans-serif`;
+                            this.ctx.textAlign = "center"; this.ctx.textBaseline = "middle";
+                            this.ctx.fillText('💥', 0, 0);
+                        } else {
+                            this.ctx.drawImage(imgToDraw, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                        }
+                        this.ctx.restore();
+                    } else {
+                        this.ctx.save(); this.ctx.translate(car.x, car.y); this.ctx.rotate(car.angle + Math.PI / 2);
+                        this.ctx.fillStyle = car.color || 'gray';
+                        this.ctx.fillRect(-COLLISION_WIDTH / 2, -COLLISION_HEIGHT / 2, COLLISION_WIDTH, COLLISION_HEIGHT);
+                        this.ctx.restore();
+                    }
+                });
+                this.ctx.restore();
+                if (this.centerMessageDisplay.style.display === 'block') {
+                    const baseFontSize = (this.isWaitingForPlayers || this.isSpectator || this.isPreRoundActive) ? 20 : 28;
+                    const countdownBaseFontSize = (this.isWaitingForPlayers || this.isSpectator || this.isPreRoundActive) ? 26 : 36;
+                    if (this.gameOverTextElement) this.gameOverTextElement.style.fontSize = `${baseFontSize * this.scaleFactor}px`;
+                    if (this.countdownTimerTextElement) this.countdownTimerTextElement.style.fontSize = `${countdownBaseFontSize * this.scaleFactor}px`;
+                }
+                requestAnimationFrame(() => this.drawGame());
+            }
+            drawOvalArena() {
+                this.ctx.strokeStyle = '#3A3A3A'; this.ctx.lineWidth = 10; this.ctx.fillStyle = '#A0522D';
+                this.ctx.beginPath();
+                this.ctx.roundRect( OVAL_SPECS_VIEW_ONLY.outerRectX, OVAL_SPECS_VIEW_ONLY.outerRectY, OVAL_SPECS_VIEW_ONLY.outerRectWidth, OVAL_SPECS_VIEW_ONLY.outerRectHeight, OVAL_SPECS_VIEW_ONLY.cornerRadiusOuter );
+                this.ctx.stroke(); this.ctx.fill();
+                this.ctx.fillStyle = '#6B4226';
+                 if(OVAL_SPECS_VIEW_ONLY.innerRectWidth > 0 && OVAL_SPECS_VIEW_ONLY.innerRectHeight > 0 && OVAL_SPECS_VIEW_ONLY.cornerRadiusInner >= 0) {
+                    this.ctx.beginPath();
+                    this.ctx.roundRect( OVAL_SPECS_VIEW_ONLY.innerRectX, OVAL_SPECS_VIEW_ONLY.innerRectY, OVAL_SPECS_VIEW_ONLY.innerRectWidth, OVAL_SPECS_VIEW_ONLY.innerRectHeight, OVAL_SPECS_VIEW_ONLY.cornerRadiusInner );
+                    this.ctx.stroke(); this.ctx.fill();
+                }
+            }
+            detach() {
+                console.log("View detached");
+                this.cars.forEach(carObj => this.unsubscribeCarEvents(carObj));
+                super.detach();
+            }
+        }
+
+        async function initMultiSynq() {
+            await preloadCarImages();
+            try {
+                Multisynq.App.makeWidgetDock();
+                const session = await Multisynq.Session.join({ apiKey: API_KEY, appId: APP_ID, model: DerbyGame, view: DerbyView });
+                console.log("MultiSynq session joined successfully!", session.id);
+            } catch (error) {
+                console.error("Failed to join MultiSynq session:", error);
+                alert("Could not connect to MultiSynq. Please check API key and network. " + error.message);
+            }
+        }
+        initMultiSynq();
+    </script>
+</body>
+</html>
