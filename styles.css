@@ -8,14 +8,54 @@ body {
 
 /* Header Styles */
 header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
   background-color: #003366;
-  color: white;
+  padding: 12px 16px;
+}
+
+.header-left,
+.header-right {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px;
-  flex-wrap: wrap;
 }
+
+.header-left {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.header-left img {
+  height: 32px;
+  width: auto;
+  margin-right: 10px;
+  border-radius: 50%;
+}
+
+.site-title {
+  font-size: 20px;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-right {
+  flex-shrink: 0;
+}
+
+.header-right img {
+  height: 28px;
+  width: auto;
+  transition: transform 0.3s ease;
+}
+
+.header-right img:hover {
+  transform: scale(1.1);
+}
+
 
 .header-left {
   display: flex;
@@ -145,5 +185,18 @@ footer a:hover {
   section {
     margin: 20px 10px;
     padding: 20px;
+  }
+}
+@media (max-width: 480px) {
+  .site-title {
+    font-size: 16px;
+  }
+
+  .header-left img {
+    height: 28px;
+  }
+
+  .header-right img {
+    height: 24px;
   }
 }
