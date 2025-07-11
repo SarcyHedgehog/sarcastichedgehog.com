@@ -248,11 +248,12 @@ footer a:hover {
     }
 
     .game-grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 30px;
-    }
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+  justify-items: center;
+}
+
 
     .game-card {
       background-color: #11161f;
