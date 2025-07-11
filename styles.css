@@ -200,3 +200,52 @@ footer a:hover {
     height: 24px;
   }
 }
+.games-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center; /* or flex-start if preferred */
+}
+
+.card-wrapper {
+  width: 300px;
+  display: flex;
+}
+
+.game-card {
+  background-color: #111827;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 540px;
+  flex-grow: 1;
+  color: white;
+  text-align: center;
+}
+
+.game-screenshot {
+  width: 100%;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  object-fit: cover;
+}
+
+.button {
+  display: block;
+  margin: 8px auto;
+  padding: 12px 20px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.button:hover {
+  background-color: #3730a3;
+}
