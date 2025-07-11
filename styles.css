@@ -200,3 +200,125 @@ footer a:hover {
     height: 24px;
   }
 }
+/* Vibe Games Page Styles */
+    .games-page {
+      max-width: 1200px;
+      margin: 50px auto;
+      padding: 0 20px;
+      color: white;
+      text-align: center;
+    }
+
+    .back-link {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+    }
+
+    .back-link a {
+      color: #aaa;
+      font-weight: bold;
+      text-decoration: none;
+      font-size: 14px;
+      background-color: #11161f;
+      padding: 6px 10px;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+    }
+
+    .back-link a:hover {
+      background-color: #2a0fc6;
+    }
+
+    .games-page h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .games-page p.description {
+      font-size: 16px;
+      color: #ccc;
+      margin-bottom: 10px;
+    }
+
+    .games-page p.share-tip {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 40px;
+    }
+
+    .game-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 30px;
+    }
+
+    .game-card {
+      background-color: #11161f;
+      border: 1px solid #2a2f38;
+      border-radius: 8px;
+      padding: 20px;
+      width: 300px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      transition: transform 0.3s ease;
+    }
+
+    .game-card:hover {
+      transform: scale(1.03);
+    }
+
+    .game-card img {
+      width: 100%;
+      height: auto;
+      max-height: 180px;
+      object-fit: cover;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+
+    .game-card h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    .game-card p {
+      font-size: 14px;
+      color: #bbb;
+      margin-bottom: 12px;
+    }
+
+    .game-links {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .game-links a {
+      flex: 1 1 45%;
+      background-color: #2a0fc6;
+      color: white;
+      text-decoration: none;
+      padding: 8px;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+      font-size: 14px;
+    }
+
+    .game-links a:hover {
+      background-color: #ff5500;
+    }
+
+    .powered-by {
+      margin-top: 50px;
+      font-style: italic;
+      color: #888;
+      font-size: 14px;
+    }
+
+    .powered-by a {
+      color: #aaa;
+      text-decoration: underline;
+    }
+  
