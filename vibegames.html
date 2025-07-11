@@ -2,64 +2,200 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vibe Games</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sarcastic Hedgehog – Vibe Games</title>
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .games-page {
+      max-width: 1200px;
+      margin: 50px auto;
+      padding: 0 20px;
+      color: white;
+      text-align: center;
+    }
+
+    .back-link {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+    }
+
+    .back-link a {
+      color: #aaa;
+      font-weight: bold;
+      text-decoration: none;
+      font-size: 14px;
+      background-color: #11161f;
+      padding: 6px 10px;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+    }
+
+    .back-link a:hover {
+      background-color: #2a0fc6;
+    }
+
+    .games-page h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .games-page p.description {
+      font-size: 16px;
+      color: #ccc;
+      margin-bottom: 10px;
+    }
+
+    .games-page p.share-tip {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 40px;
+    }
+
+    .game-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 30px;
+    }
+
+    .game-card {
+      background-color: #11161f;
+      border: 1px solid #2a2f38;
+      border-radius: 8px;
+      padding: 20px;
+      width: 300px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      transition: transform 0.3s ease;
+    }
+
+    .game-card:hover {
+      transform: scale(1.03);
+    }
+
+    .game-card img {
+      width: 100%;
+      height: auto;
+      max-height: 180px;
+      object-fit: cover;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+
+    .game-card h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    .game-card p {
+      font-size: 14px;
+      color: #bbb;
+      margin-bottom: 12px;
+    }
+
+    .game-links {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .game-links a {
+      flex: 1 1 45%;
+      background-color: #2a0fc6;
+      color: white;
+      text-decoration: none;
+      padding: 8px;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+      font-size: 14px;
+    }
+
+    .game-links a:hover {
+      background-color: #ff5500;
+    }
+
+    .powered-by {
+      margin-top: 50px;
+      font-style: italic;
+      color: #888;
+      font-size: 14px;
+    }
+
+    .powered-by a {
+      color: #aaa;
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body>
-  <header>
-    <h1>Vibe Games</h1>
-  </header>
+  <div class="back-link">
+    <a href="index.html">&larr; Back to Home</a>
+  </div>
 
-  <main>
-    <div class="games-container">
-      <div class="card-wrapper">
-        <div class="game-card">
-          <img src="images/pongout.png" alt="Pongout Screenshot" class="game-screenshot" />
-          <h3>Pongout</h3>
-          <p>A multiplayer breakout-meets-pong game. Knock down bricks, shrink paddles, and survive the volley!</p>
-          <p><strong>Controls:</strong> Arrow keys to move. Bounce the ball past your opponent!</p>
-          <a href="/pongout" class="button">Play</a>
-          <a href="https://github.com/SarcyHedgehog/pongout" class="button">View Repo</a>
+  <div class="games-page">
+    <h1>Vibe-Coded Multiplayer Prototypes</h1>
+    <p class="description">
+      These games are built using Vibe Coding — prototyping in real-time with AI and the
+      <a href="https://multisynq.io" target="_blank">Multisynq</a> multiplayer engine. They’re experimental, open-source, and yours to fork or improve.
+    </p>
+    <p class="share-tip">
+      Start a game, then share the URL with a friend — or scan the QR code shown inside the game.
+    </p>
+
+    <div class="game-grid">
+      <!-- MazeTag -->
+      <div class="game-card">
+        <img src="images/mazetag.png" alt="MazeTag">
+        <h2>MazeTag</h2>
+        <p>Multiplayer maze escape with traps, dashes, and close calls. Great for quick sessions with friends.</p>
+        <p><strong>Controls:</strong> Use Left and Right Arrow keys to turn. Avoid the hunter!</p>
+        <div class="game-links">
+          <a href="/mazetag/mazetag.html" target="_blank">Play</a>
+          <a href="https://github.com/SarcyHedgehog/mazetag" target="_blank">View Repo</a>
         </div>
       </div>
 
-      <div class="card-wrapper">
-        <div class="game-card">
-          <img src="images/mazetag.png" alt="MazeTag Screenshot" class="game-screenshot" />
-          <h3>MazeTag</h3>
-          <p>Multiplayer maze-chase game. Can you outmaneuver your opponent?</p>
-          <p><strong>Controls:</strong> Use Left and Right Arrow keys to turn. Avoid the hunter!</p>
-          <a href="/mazetag" class="button">Play</a>
-          <a href="https://github.com/SarcyHedgehog/mazetag" class="button">View Repo</a>
+      <!-- BreakPong -->
+      <div class="game-card">
+        <img src="images/pongout.png" alt="BreakPong 3D">
+        <h2>BreakPong 3D</h2>
+        <p>Pong meets Breakout in 3D — bricks, shrinking paddles, portals, and frantic back-and-forth multiplayer.</p>
+        <p><strong>Controls:</strong> Arrow keys to move your paddle. Score by getting the ball past your opponent.</p>
+        <div class="game-links">
+          <a href="/breakpong/" target="_blank">Play</a>
+          <a href="https://github.com/SarcyHedgehog/breakpong" target="_blank">View Repo</a>
         </div>
       </div>
 
-      <div class="card-wrapper">
-        <div class="game-card">
-          <img src="images/demoderby.png" alt="DemoDerby Screenshot" class="game-screenshot" />
-          <h3>DemoDerby</h3>
-          <p>Multiplayer demolition derby prototype. Smash opponents, dodge chaos, and test your driving instincts.</p>
-          <p><strong>Controls:</strong> Arrow keys to drive. Hit others from behind to score. Don't get wrecked!</p>
-          <a href="/demoderby" class="button">Play</a>
-          <a href="https://github.com/SarcyHedgehog/demoderby" class="button">View Repo</a>
+      <!-- DemoDerby -->
+      <div class="game-card">
+        <img src="images/demoderby.png" alt="DemoDerby">
+        <h2>DemoDerby</h2>
+        <p>Multiplayer demolition derby prototype. Smash opponents, dodge chaos, and test your driving instincts.</p>
+        <p><strong>Controls:</strong> Arrow keys to drive. Hit others from behind to score. Don't get wrecked!</p>
+        <div class="game-links">
+          <a href="/demoderby/" target="_blank">Play</a>
+          <a href="https://github.com/SarcyHedgehog/DemoDerby" target="_blank">View Repo</a>
         </div>
       </div>
+    
+<!-- Buzzer -->
+<div class="game-card">
+  <img src="images/buzzer.png" alt="Buzzer">
+  <h2>Buzzer</h2>
+  <p>A multiplayer true/false quiz scorer. Join a session, hit the buzzer, and race to answer. Installable as a Progressive Web App.</p>
+  <p><strong>Controls:</strong> Click or tap the ✔️ or ❌ to answer. Host leads the quiz!</p>
+  <div class="game-links">
+    <a href="/buzzer/" target="_blank">Play</a>
+    <a href="https://github.com/SarcyHedgehog/buzzer2" target="_blank">View Repo</a>
+  </div>
+</div>
+</div>
 
-      <div class="card-wrapper">
-        <div class="game-card">
-          <img src="images/buzzer.png" alt="Buzzer Screenshot" class="game-screenshot" />
-          <h3>Buzzer</h3>
-          <p>
-            A multiplayer true/false quiz game. Join a session, hit the buzzer, and race to answer.<br>
-            Installable as a Progressive Web App.
-          </p>
-          <p><strong>Controls:</strong> Click or tap the ✔️ or ❌ to answer. Host leads the quiz!</p>
-          <a href="/buzzer" class="button">Play</a>
-          <a href="https://github.com/SarcyHedgehog/buzzer2" class="button">View Repo</a>
-        </div>
-      </div>
-    </div>
-  </main>
+    <p class="powered-by">
+      Multiplayer powered by <a href="https://multisynq.io" target="_blank">Multisynq</a>
+    </p>
+  </div>
 </body>
 </html>
