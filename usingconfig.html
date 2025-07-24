@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Using config.js to Handle Secrets</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 750px;
+      margin: 2rem auto;
+      padding: 1rem;
+      line-height: 1.6;
+      color: #222;
+      background: #fff;
+    }
+    h1, h2, h3 {
+      color: #1a1a1a;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 1em;
+      overflow-x: auto;
+      border-radius: 6px;
+    }
+    code {
+      font-family: monospace;
+    }
+    svg {
+      display: block;
+      margin: 2rem auto;
+      max-width: 100%;
+    }
+    .disclaimer {
+      font-style: italic;
+      font-size: 0.9em;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Using <code>config.js</code> to Handle Secrets<br><small>(Without Hating Yourself Later)</small></h1>
+
+  <p>This is a simple method I use in my frontend projects — including my Multisynq-based apps — to keep API keys and secrets out of version control.</p>
+
+  <ul>
+    <li>Prevents keys from being committed to GitHub</li>
+    <li>Lets you develop locally without breaking your app</li>
+    <li>Plays nicely with GitHub Pages and other static hosts</li>
+  </ul>
+
+  <div class="disclaimer">
+    These are mine, not official docs. If you're working with a team or deploying at scale, consider reviewing your security model separately.
+  </div>
+
+  <h2>What is <code>config.js</code>?</h2>
+
+  <p>It’s a small JavaScript file you don’t commit. You load it in development, and it sets up any secrets you need in a global object like <code>window.APP_CONFIG</code>.</p>
+
+  <pre><code>// config.js (local only)
+window.APP_CONFIG = {
+  API_KEY: "your-api-key-here",
+  APP_ID: "com.example.myapp"
+};
+</code></pre>
+
+  <p>In your HTML, load it <strong>before</strong> your main script:</p>
+
+  <pre><code>&lt;script src="config.js"&gt;&lt;/script&gt;
+&lt;script type="module"&gt;
+  const { API_KEY, APP_ID } = window.APP_CONFIG;
+  // your app starts here
+&lt;/script&gt;
+</code></pre>
+
+  <h2>Why not just hardcode the API key?</h2>
+  <p>Because then it’ll live forever in your git history, public forks, and CDN cache. Even if you remove it later, it’s still there.</p>
+
+  <h2>How does it work?</h2>
+
+  <p>The browser loads <code>config.js</code> first. It sets <code>window.APP_CONFIG</code>. Your app grabs those values and runs as normal.</p>
+
+  <h3>Simple diagram:</h3>
+  <svg width="600" height="300" xmlns="http://www.w3.org/2000/svg">
+    <style>
+      .label { font: 14px sans-serif; fill: #333; }
+      .box { fill: #eee; stroke: #aaa; stroke-width: 1.5; rx: 6; ry: 6; }
+    </style>
+    <rect x="40" y="30" width="180" height="50" class="box"/>
+    <text x="55" y="60" class="label">config.js (local only)</text>
+
+    <rect x="260" y="30" width="280" height="50" class="box"/>
+    <text x="275" y="60" class="label">Your app (index.html, main.js)</text>
+
+    <line x1="220" y1="55" x2="260" y2="55" stroke="#666" stroke-width="2" marker-end="url(#arrow)" />
+    <text x="110" y="85" class="label">loads first</text>
+
+    <defs>
+      <marker id="arrow" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#666"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <h2>Setting up secrets for deployment</h2>
+
+  <p>If you’re using GitHub Pages (or another static host), do <strong>not</strong> upload your local <code>config.js</code>.</p>
+
+  <h3>Here’s what I do:</h3>
+  <ol>
+    <li>In your GitHub repo, go to <strong>Settings → Secrets → Actions</strong></li>
+    <li>Add your secrets there — e.g., <code>API_KEY</code>, <code>APP_ID</code></li>
+    <li>Use your deployment process (e.g., Netlify, Cloudflare, Vite, custom build) to inject those secrets if needed</li>
+  </ol>
+
+  <p>If you’re just copying files manually to a host, you can maintain a separate <code>config.js</code> that’s <em>not</em> in Git — just make sure you upload the right one when deploying.</p>
+
+  <h2>Fallback if config.js is missing</h2>
+
+  <pre><code>const config = window.APP_CONFIG || {
+  API_KEY: "DEMO_KEY",
+  APP_ID: "com.example.demo"
+};
+</code></pre>
+
+  <p>This lets you build with defaults or run demos if needed.</p>
+
+  <h2>Summary</h2>
+
+  <ul>
+    <li>Create a <code>config.js</code> file locally</li>
+    <li>Set secrets on <code>window.APP_CONFIG</code></li>
+    <li>Never commit it — add it to <code>.gitignore</code></li>
+    <li>Load it before your main script</li>
+    <li>In production, use a separate copy or inject secrets via your host</li>
+  </ul>
+
+  <div class="disclaimer">
+    Again: this is how I do it. These are mine, not official docs. Use what works for your setup.
+  </div>
+
+</body>
+</html>
