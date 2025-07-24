@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Poker Dice</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e293b">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@multisynq/client@latest/bundled/multisynq-client.min.js"></script>
+    <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+    <script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.165.0/build/three.module.js" } } </script>
+    <script src="config.js"></script>
+    <script>
+        if (!window.APP_CONFIG) { console.warn("config.js not found..."); window.APP_CONFIG = { API_KEY: "placeholder", APP_ID: "placeholder" }; }
+    </script>
+    <style>
+        body { touch-action: manipulation; }
+        #game-canvas { display: block; width: 100%; height: 100%; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans overflow-hidden">
+
+    <!-- LOBBY SCREEN -->
+    <div id="lobby-screen" class="flex flex-col h-screen items-center justify-center p-4">
+        <h1 class="text-6xl font-bold mb-8 text-cyan-400">Poker Dice</h1>
+        <input id="name-input" type="text" placeholder="Enter Your Name" class="text-center text-xl w-full max-w-sm p-4 rounded-lg bg-slate-700 text-white border-2 border-slate-600 focus:border-cyan-400 focus:outline-none mb-4">
+        <div id="join-create-buttons" class="w-full max-w-sm space-y-4">
+            <button id="show-create-button" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-2xl py-4 rounded-lg shadow-lg transition-transform active:scale-95">Create New Game</button>
+            <button id="show-join-button" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold text-2xl py-4 rounded-lg shadow-lg transition-transform active:scale-95">Join Existing Game</button>
+        </div>
+        <div id="code-entry" class="hidden w-full max-w-sm space-y-4">
+            <input id="code-input" type="text" placeholder="Enter Game Code" class="text-center text-xl w-full p-4 rounded-lg bg-slate-700 text-white border-2 border-slate-600 focus:border-cyan-400 focus:outline-none" autocapitalize="off" autocomplete="off">
+            <button id="go-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-2xl py-4 rounded-lg shadow-lg transition-transform active:scale-95">Let's Go!</button>
+            <button id="back-button" class="w-full text-slate-400 hover:text-white pt-2">Back</button>
+        </div>
+        <button id="install-button" class="hidden mt-8 bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-lg font-bold">Install App</button>
+        <div id="ios-install-helper" class="hidden mt-8 text-center bg-indigo-900/50 p-3 rounded-lg max-w-sm">
+            <p>To install, tap the <span class="font-bold">Share</span> button <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 inline-block -mt-1"><path d="M13 4.5a2.5 2.5 0 1 1 .752 4.256l-3.32 1.51a2.503 2.503 0 0 1 0 1.468l3.32 1.51A2.5 2.5 0 1 1 14.5 16a2.5 2.5 0 0 1-.752-4.256L10.428 10l3.32-1.51A2.5 2.5 0 0 1 13 4.5Z M4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z" /></svg> then choose <span class="font-bold">'Add to Home Screen'</span>.</p>
+        </div>
+    </div>
+
+    <!-- GAME & GAME OVER SCREENS -->
+    <div id="game-screen" class="hidden flex-col h-screen p-4"><div class="flex-shrink-0 text-center mb-4"><p id="game-status" class="text-2xl font-semibold text-cyan-400 h-8">Loading...</p><p id="hand-result" class="text-xl text-slate-300 h-7"></p></div><div id="canvas-container" class="flex-grow w-full max-w-md mx-auto relative rounded-lg overflow-hidden bg-slate-800/50"><canvas id="game-canvas"></canvas></div><div id="player-list-container" class="flex-shrink-0 w-full max-w-md mx-auto mt-4"><div id="player-list" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div></div><div id="footer-controls" class="flex-shrink-0 flex items-center justify-center p-4"><button id="start-game-button" class="hidden bg-green-600 hover:bg-green-700 px-8 py-4 rounded-lg font-bold text-2xl transition-transform active:scale-95 disabled:opacity-50">Start Game</button><button id="roll-dice-button" class="hidden bg-cyan-500 hover:bg-cyan-600 px-8 py-4 rounded-lg font-bold text-2xl transition-transform active:scale-95 disabled:opacity-50">Roll Dice</button><button id="end-turn-button" class="hidden bg-amber-500 hover:bg-amber-600 px-8 py-4 rounded-lg font-bold text-2xl transition-transform active:scale-95">End Turn</button></div></div>
+    <div id="game-over-screen" class="hidden flex-col h-screen items-center justify-center p-4"><h1 class="text-5xl font-bold mb-6 text-cyan-400">Game Over!</h1><p id="winner-name" class="text-3xl mb-6 text-center"></p><div id="final-scores-list" class="w-full max-w-md bg-slate-800 p-4 rounded-lg overflow-y-auto space-y-3"></div><button id="new-game-button" class="hidden mt-6 bg-cyan-500 hover:bg-cyan-600 px-8 py-3 rounded-lg font-bold text-xl transition-transform active:scale-95">Play Again</button></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        // --- GAME MODEL (Unchanged) ---
+        class PlayerModel extends Multisynq.Model { init(props) { this.viewId = props.viewId; this.name = props.name; this.isHost = props.isHost || false; this.finalHand = null; } } PlayerModel.register("PlayerModel");
+        class GameModel extends Multisynq.Model {
+            init() { this.players = new Map(); this.gameState = 'LOBBY'; this.turnOrder = []; this.currentPlayerIndex = 0; this.dice = Array(5).fill(null).map(() => ({ value: 6, held: false })); this.rollNumber = 0; this.lastRollTimestamp = 0; this.subscribe(this.sessionId, "view-join", "viewJoined"); this.subscribe(this.sessionId, "view-exit", "viewExited"); this.subscribe(this.id, "startGame", "startGame"); this.subscribe(this.id, "rollDice", "rollDice"); this.subscribe(this.id, "toggleHold", "toggleHold"); this.subscribe(this.id, "endTurn", "endTurn"); this.subscribe(this.id, "newGame", "newGame"); }
+            get host() { for (const p of this.players.values()) { if (p.isHost) return p; } return null; }
+            viewJoined(p) { const isHost = this.players.size === 0; const newPlayer = PlayerModel.create({ viewId: p.viewId, name: p.viewData.name, isHost }); this.players.set(p.viewId, newPlayer); this.publish(this.id, "model-updated"); }
+            viewExited(p) { const player = this.players.get(p.viewId); if (player) { this.players.delete(p.viewId); if (player.isHost) { this.resetToLobby(); } else { if (this.gameState === 'IN_PROGRESS' && player.viewId === this.turnOrder[this.currentPlayerIndex]) { this.advanceTurn(); } this.publish(this.id, "model-updated"); } } }
+            startGame() { if (this.gameState !== 'LOBBY' || this.players.size < 1) return; this.gameState = 'IN_PROGRESS'; this.turnOrder = Array.from(this.players.keys()); this.currentPlayerIndex = 0; this.players.forEach(p => p.finalHand = null); this.startTurn(); }
+            startTurn() { this.rollNumber = 0; this.dice.forEach(d => d.held = false); this.publish(this.id, "model-updated"); }
+            rollDice() { if (this.rollNumber >= 3) return; this.rollNumber++; this.lastRollTimestamp = this.now(); this.dice.forEach(die => { if (!die.held) { die.value = Math.ceil(this.random() * 6); } }); this.publish(this.id, "model-updated"); }
+            toggleHold(dieIndex) { if (this.rollNumber > 0 && this.rollNumber < 3) { this.dice[dieIndex].held = !this.dice[dieIndex].held; this.publish(this.id, "model-updated"); } }
+            endTurn() { const player = this.players.get(this.turnOrder[this.currentPlayerIndex]); if (player) { player.finalHand = this.evaluateHand(this.dice.map(d => d.value)); } this.advanceTurn(); }
+            advanceTurn() { if (this.currentPlayerIndex >= this.turnOrder.length - 1) { this.endGame(); } else { this.currentPlayerIndex++; this.startTurn(); } }
+            endGame() { this.gameState = 'GAME_OVER'; this.publish(this.id, "model-updated"); }
+            newGame() { this.resetToLobby(); this.startGame(); }
+            resetToLobby() { this.gameState = 'LOBBY'; this.turnOrder = []; this.currentPlayerIndex = 0; this.players.forEach(p => p.finalHand = null); this.startTurn(); this.publish(this.id, "model-updated"); }
+            evaluateHand(dice) { const counts = new Array(7).fill(0); dice.forEach(d => counts[d]++); counts.sort((a, b) => b - a); const sortedValues = [...dice].sort((a, b) => b - a); const isStraight = (vals) => { const unique = [...new Set(vals)]; if (unique.length !== 5) return false; return (unique[0] - unique[4] === 4) && (unique[0] === 6 || unique[0] === 5); }; if (counts[0] === 5) return { name: "Five of a Kind", rank: 8, values: sortedValues }; if (counts[0] === 4) return { name: "Four of a Kind", rank: 7, values: sortedValues }; if (counts[0] === 3 && counts[1] === 2) return { name: "Full House", rank: 6, values: sortedValues }; if (isStraight(sortedValues)) return { name: sortedValues[0] === 6 ? "High Straight" : "Low Straight", rank: 5, values: sortedValues }; if (counts[0] === 3) return { name: "Three of a Kind", rank: 4, values: sortedValues }; if (counts[0] === 2 && counts[1] === 2) return { name: "Two Pair", rank: 3, values: sortedValues }; if (counts[0] === 2) return { name: "One Pair", rank: 2, values: sortedValues }; return { name: "Bust", rank: 1, values: sortedValues }; }
+        }
+        GameModel.register("GameModel");
+
+        // --- GAME VIEW (with updated scoreboard) ---
+        class GameView extends Multisynq.View {
+            constructor(model) { super(model); this.gameModel = model; this.dom = { lobby: document.getElementById('lobby-screen'), game: document.getElementById('game-screen'), gameOver: document.getElementById('game-over-screen'), canvasContainer: document.getElementById('canvas-container'), canvas: document.getElementById('game-canvas'), gameStatus: document.getElementById('game-status'), handResult: document.getElementById('hand-result'), playerList: document.getElementById('player-list'), startGameButton: document.getElementById('start-game-button'), rollDiceButton: document.getElementById('roll-dice-button'), endTurnButton: document.getElementById('end-turn-button'), finalScoresList: document.getElementById('final-scores-list'), winnerName: document.getElementById('winner-name'), newGameButton: document.getElementById('new-game-button'), }; this.lastAnimatedTimestamp = 0; this.diceAnimationState = []; this.endTurnTimer = null; this.initThree(); this.setupEventListeners(); this.subscribe(this.gameModel.id, "model-updated", () => this.updateUI()); this.dom.lobby.classList.add('hidden'); this.dom.game.classList.remove('hidden'); this.dom.game.classList.add('flex'); this.updateUI(); }
+            setupEventListeners() { this.dom.startGameButton.addEventListener('click', () => this.publish(this.gameModel.id, "startGame")); this.dom.rollDiceButton.addEventListener('click', () => this.publish(this.gameModel.id, "rollDice")); this.dom.endTurnButton.addEventListener('click', () => this.publish(this.gameModel.id, "endTurn")); this.dom.newGameButton.addEventListener('click', () => this.publish(this.gameModel.id, "newGame")); this.raycaster = new THREE.Raycaster(); this.pointer = new THREE.Vector2(); this.dom.canvas.addEventListener('pointerdown', (event) => { if (this.diceAnimationState.some(s => s.isTumbling)) return; const rect = this.dom.canvas.getBoundingClientRect(); this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1; this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1; this.raycaster.setFromCamera(this.pointer, this.camera); const intersects = this.raycaster.intersectObjects(this.diceMeshes); if (intersects.length > 0) { this.publish(this.gameModel.id, 'toggleHold', intersects[0].object.userData.index); } }); }
+            updateUI() { const state = this.gameModel.gameState; const me = this.gameModel.players.get(this.viewId); const isMyTurn = this.gameModel.turnOrder[this.gameModel.currentPlayerIndex] === this.viewId; const isHost = me?.isHost; this.dom.game.classList.toggle('hidden', state === 'GAME_OVER'); this.dom.game.classList.toggle('flex', state !== 'GAME_OVER'); this.dom.gameOver.classList.toggle('hidden', state !== 'GAME_OVER'); this.dom.gameOver.classList.toggle('flex', state === 'GAME_OVER'); if (state === 'LOBBY') { this.dom.gameStatus.textContent = 'Waiting for players...'; this.dom.handResult.textContent = `Game Code: ${window.sessionLobbyCode}`; this.dom.startGameButton.classList.toggle('hidden', !isHost); this.dom.startGameButton.disabled = this.gameModel.players.size < 1; this.dom.rollDiceButton.classList.add('hidden'); this.dom.endTurnButton.classList.add('hidden'); } else if (state === 'IN_PROGRESS') { const currentPlayer = this.gameModel.players.get(this.gameModel.turnOrder[this.gameModel.currentPlayerIndex]); this.dom.gameStatus.textContent = isMyTurn ? `Your Turn (Roll ${this.gameModel.rollNumber}/3)` : `${currentPlayer?.name} is rolling...`; const currentHand = this.gameModel.evaluateHand(this.gameModel.dice.map(d => d.value)); this.dom.handResult.textContent = this.gameModel.rollNumber > 0 ? currentHand.name : 'Click Roll Dice to start'; this.dom.startGameButton.classList.add('hidden'); const isAnimating = this.diceAnimationState.some(s => s.isTumbling); this.dom.rollDiceButton.classList.toggle('hidden', !isMyTurn || this.gameModel.rollNumber >= 3); this.dom.rollDiceButton.disabled = isAnimating; this.dom.endTurnButton.classList.toggle('hidden', !isMyTurn || this.gameModel.rollNumber === 0 || this.gameModel.rollNumber === 3); this.dom.endTurnButton.disabled = isAnimating; if (isMyTurn && this.gameModel.rollNumber === 3 && !this.endTurnTimer) { this.endTurnTimer = setTimeout(() => { this.publish(this.gameModel.id, "endTurn"); this.endTurnTimer = null; }, 1500); } } else if (state === 'GAME_OVER') { this.renderFinalScores(); this.dom.newGameButton.classList.toggle('hidden', !isHost); } this.renderPlayerList(); if (this.gameModel.lastRollTimestamp > this.lastAnimatedTimestamp) { this.animateDiceRoll(); } }
+            animateDiceRoll() { this.lastAnimatedTimestamp = this.gameModel.lastRollTimestamp; const TUMBLE_DURATION = 1000; this.gameModel.dice.forEach((dieState, i) => { if (!dieState.held) { this.diceAnimationState[i].isTumbling = true; this.diceAnimationState[i].angularVelocity = new THREE.Vector3((Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20); setTimeout(() => { this.diceAnimationState[i].isTumbling = false; }, TUMBLE_DURATION); } }); }
+            initThree() { this.scene = new THREE.Scene(); const container = this.dom.canvasContainer; this.camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000); this.camera.position.set(0, 5, 9); this.camera.lookAt(0, 0, 0); this.renderer = new THREE.WebGLRenderer({ canvas: this.dom.canvas, antialias: true, alpha: true }); this.renderer.setSize(container.clientWidth, container.clientHeight); this.renderer.setPixelRatio(window.devicePixelRatio); this.scene.add(new THREE.AmbientLight(0xffffff, 2.0)); const dirLight = new THREE.DirectionalLight(0xffffff, 2.5); dirLight.position.set(5, 10, 7.5); this.scene.add(dirLight); const textureLoader = new THREE.TextureLoader(); this.materials = [1, 2, 3, 4, 5, 6].map(i => new THREE.MeshStandardMaterial({ map: textureLoader.load(`textures/face${i}.png`), roughness: 0.6, metalness: 0.2, transparent: true, opacity: 1.0 })); this.faceRotations = [ new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0)), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -Math.PI / 2, 0)), new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)), new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, 0)), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI, 0)), ]; const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5); this.diceMeshes = []; this.diceOriginalPositions = []; const positions = [ [-2.5, 2.2, 0], [0, 2.2, 0], [2.5, 2.2, 0], [-1.5, -1.2, 0], [1.5, -1.2, 0] ]; for (let i = 0; i < 5; i++) { const die = new THREE.Mesh(geometry, this.materials); die.position.set(positions[i][0], positions[i][1], positions[i][2]); this.diceOriginalPositions.push(die.position.clone()); die.userData.index = i; this.scene.add(die); this.diceMeshes.push(die); this.diceAnimationState.push({ isTumbling: false, angularVelocity: new THREE.Vector3() }); } new ResizeObserver(() => { this.camera.aspect = container.clientWidth / container.clientHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(container.clientWidth, container.clientHeight); }).observe(container); this.clock = new THREE.Clock(); this.renderLoop(); }
+            renderLoop() { requestAnimationFrame(() => this.renderLoop()); const delta = this.clock.getDelta(); this.diceMeshes.forEach((mesh, i) => { const animState = this.diceAnimationState[i]; const dieState = this.gameModel.dice[i]; if (animState.isTumbling) { mesh.rotation.x += animState.angularVelocity.x * delta; mesh.rotation.y += animState.angularVelocity.y * delta; } else { const targetQuat = this.getFinalDieQuaternion(mesh, dieState.value); mesh.quaternion.slerp(targetQuat, delta * 10.0); } const originalPos = this.diceOriginalPositions[i]; const targetPos = dieState.held ? new THREE.Vector3(originalPos.x * 0.9, originalPos.y - 1.5, -2) : originalPos; mesh.position.lerp(targetPos, delta * 8.0); mesh.material.opacity = THREE.MathUtils.lerp(mesh.material.opacity, dieState.held ? 0.5 : 1.0, delta * 10.0); }); this.renderer.render(this.scene, this.camera); }
+            getFinalDieQuaternion(mesh, value) { const cameraLookAt = new THREE.Quaternion(); const dummy = new THREE.Object3D(); dummy.position.copy(mesh.position); dummy.lookAt(this.camera.position); cameraLookAt.copy(dummy.quaternion); return cameraLookAt.multiply(this.faceRotations[value - 1]); }
+            renderPlayerList() { const players = [...this.gameModel.players.values()]; this.dom.playerList.innerHTML = players.map(p => { const isCurrent = this.gameModel.turnOrder[this.gameModel.currentPlayerIndex] === p.viewId; const handText = p.finalHand ? p.finalHand.name : (isCurrent ? 'Playing...' : 'Waiting...'); return `<div class="bg-slate-700 p-2 rounded-lg text-center ${isCurrent ? 'ring-2 ring-cyan-400' : ''}"><p class="font-bold truncate">${p.name}</p><p class="text-sm text-slate-300">${handText}</p></div>`; }).join(''); }
+            renderFinalScores() { const players = [...this.gameModel.players.values()].filter(p => p.finalHand).sort((a, b) => { if (b.finalHand.rank !== a.finalHand.rank) { return b.finalHand.rank - a.finalHand.rank; } for (let i = 0; i < 5; i++) { if (b.finalHand.values[i] !== a.finalHand.values[i]) { return b.finalHand.values[i] - a.finalHand.values[i]; } } return 0; }); if (players.length > 0) { const winner = players[0]; this.dom.winnerName.textContent = `${winner.name} wins with a ${winner.finalHand.name}!`; this.dom.finalScoresList.innerHTML = players.map(p => { const isWinner = p.viewId === winner.viewId; const diceHTML = p.finalHand.values.map(v => `<img src="textures/face${v}.png" class="w-6 h-6 rounded-sm">`).join(''); return `<div class="flex justify-between items-center text-lg p-3 rounded-lg ${isWinner ? 'bg-cyan-800 ring-2 ring-cyan-400' : 'bg-slate-700'}"><span class="${p.viewId === this.viewId ? 'text-cyan-400' : ''} ${isWinner ? 'font-extrabold' : 'font-bold'}">${p.name}</span><div class="flex items-center gap-x-2"><span class="font-bold hidden sm:block">${p.finalHand.name}</span><div class="flex gap-x-1">${diceHTML}</div></div></div>`; }).join(''); } else { this.dom.winnerName.textContent = "Game Over!"; this.dom.finalScoresList.innerHTML = `<p class="text-center italic text-slate-400">No final scores were recorded.</p>`; } }
+        }
+
+         // --- LOBBY CONTROLLER (with corrected localStorage keys) ---
+        class AppController {
+            constructor() {
+                this.dom = {
+                    lobby: document.getElementById('lobby-screen'), nameInput: document.getElementById('name-input'), codeInput: document.getElementById('code-input'),
+                    showCreateButton: document.getElementById('show-create-button'), showJoinButton: document.getElementById('show-join-button'),
+                    goButton: document.getElementById('go-button'), backButton: document.getElementById('back-button'),
+                    joinCreateButtons: document.getElementById('join-create-buttons'), codeEntry: document.getElementById('code-entry'),
+                    installButton: document.getElementById('install-button'), iosInstallHelper: document.getElementById('ios-install-helper')
+                };
+                this.setupLobbyListeners();
+                this.setupPwaListeners();
+                this.loadName();
+            }
+            setupLobbyListeners() {
+                this.dom.showCreateButton.addEventListener('click', () => this.showCodeEntry(true));
+                this.dom.showJoinButton.addEventListener('click', () => this.showCodeEntry(false));
+                this.dom.backButton.addEventListener('click', () => this.showMainMenu());
+                this.dom.goButton.addEventListener('click', () => this.joinSession());
+                this.dom.nameInput.addEventListener('change', () => this.saveName());
+            }
+            setupPwaListeners() {
+                let deferredPrompt;
+                const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                if (isIos() && !window.navigator.standalone) {
+                    this.dom.iosInstallHelper.classList.remove('hidden');
+                }
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    deferredPrompt = e;
+                    if (!isIos()) {
+                        this.dom.installButton.classList.remove('hidden');
+                    }
+                    this.dom.installButton.addEventListener('click', () => {
+                        this.dom.installButton.classList.add('hidden');
+                        deferredPrompt.prompt();
+                        deferredPrompt.userChoice.then(() => {
+                            deferredPrompt = null;
+                        });
+                    });
+                });
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('./sw.js').catch(e => console.error('SW registration failed:', e));
+                }
+            }
+            loadName() {
+                // CHANGED: Using a unique key for this game
+                const n = localStorage.getItem('pokerDice_playerName');
+                if (n) this.dom.nameInput.value = n;
+            }
+            saveName() {
+                // CHANGED: Using a unique key for this game
+                localStorage.setItem('pokerDice_playerName', this.dom.nameInput.value);
+            }
+            showCodeEntry(isCreating) {
+                this.dom.joinCreateButtons.classList.add('hidden');
+                this.dom.codeEntry.classList.remove('hidden');
+                if (isCreating) {
+                    this.dom.codeInput.value = Array.from({ length: 5 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join('');
+                } else {
+                    this.dom.codeInput.value = '';
+                }
+                this.dom.codeInput.focus();
+            }
+            showMainMenu() {
+                this.dom.joinCreateButtons.classList.remove('hidden');
+                this.dom.codeEntry.classList.add('hidden');
+            }
+            async joinSession() {
+                const name = this.dom.nameInput.value.trim();
+                const code = this.dom.codeInput.value.trim().toUpperCase();
+                if (!name || !code) {
+                    alert("Please enter your name and a game code!");
+                    return;
+                }
+                this.saveName();
+                window.sessionLobbyCode = code;
+                try {
+                    const session = await Multisynq.Session.join({
+                        apiKey: window.APP_CONFIG.API_KEY,
+                        appId: window.APP_CONFIG.APP_ID,
+                        name: code,
+                        password: 'poker-dice-default-pw',
+                        model: GameModel,
+                        view: GameView,
+                        viewData: { name: name }
+                    });
+                    if (session.model.gameState === 'IN_PROGRESS' || session.model.gameState === 'GAME_OVER') {
+                        console.log("Joined as spectator.");
+                    }
+                } catch (err) {
+                    console.error("LOBBY: Failed to join session:", err);
+                    alert("Could not join game. Check the code or try again.");
+                }
+            }
+        }
+        new AppController();
+    </script>
+</body>
+</html>
