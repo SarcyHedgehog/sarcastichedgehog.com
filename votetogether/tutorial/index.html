@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VoteTogether Development Tutorials – Sarcastic Hedgehog</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <style>
+    .tutorial-page {
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 0 20px;
+      color: white;
+    }
+
+    .back-link {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+    }
+
+    .back-link a {
+      color: #aaa;
+      font-weight: bold;
+      text-decoration: none;
+      font-size: 14px;
+      background-color: #11161f;
+      padding: 6px 10px;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+    }
+
+    .back-link a:hover {
+      background-color: #2a0fc6;
+    }
+
+    .tutorial-page h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .tutorial-intro {
+      background-color: #0f131a;
+      border-radius: 8px;
+      padding: 30px;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    .tutorial-intro p {
+      color: #ccc;
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .tutorial-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 25px;
+      margin-bottom: 40px;
+    }
+
+    .tutorial-card {
+      background-color: #11161f;
+      border: 1px solid #2a2f38;
+      border-radius: 8px;
+      padding: 25px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .tutorial-card:hover {
+      transform: translateY(-2px);
+      border-color: #2a0fc6;
+    }
+
+    .tutorial-card h3 {
+      font-size: 20px;
+      margin-bottom: 12px;
+      color: white;
+    }
+
+    .tutorial-card p {
+      color: #bbb;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+
+    .tutorial-card .topics {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+
+    .tutorial-card a {
+      display: inline-block;
+      background-color: #2a0fc6;
+      color: white;
+      text-decoration: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .tutorial-card a:hover {
+      background-color: #ff5500;
+    }
+
+    .repo-link {
+      background-color: #0f131a;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      margin-top: 30px;
+    }
+
+    .repo-link a {
+      color: #aaa;
+      text-decoration: underline;
+      font-size: 14px;
+    }
+
+    .repo-link a:hover {
+      color: white;
+    }
+
+    @media (max-width: 768px) {
+      .tutorial-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .tutorial-card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="back-link">
+    <a href="../../vibegames.html">&larr; Back to Games</a>
+  </div>
+
+  <div class="tutorial-page">
+    <h1>VoteTogether Development Tutorials</h1>
+    
+    <div class="tutorial-intro">
+      <p>
+        VoteTogether demonstrates several advanced patterns for building robust multiplayer applications with Multisynq.
+        These tutorials break down the key techniques used in the implementation.
+      </p>
+      <p>
+        Each tutorial includes real code examples, explains the problems being solved, and shows production-ready approaches
+        that can be applied to other Multisynq projects.
+      </p>
+    </div>
+
+    <div class="tutorial-grid">
+      <div class="tutorial-card">
+        <h3>1. Configuration Management</h3>
+        <p>Learn how to use external config files for API keys and URLs, enabling clean separation between development and production environments with automated deployment.</p>
+        <div class="topics">config.js • API keys • deployment automation • environment separation</div>
+        <a href="https://raw.githubusercontent.com/SarcyHedgehog/VoteTogether/main/tutorial/configuration_management.md" target="_blank">Read Tutorial</a>
+      </div>
+
+      <div class="tutorial-card">
+        <h3>2. Signin Lobby Pattern</h3>
+        <p>Implement a pre-connection signin screen that collects user credentials and validates input before joining the Multisynq session, improving user experience and error handling.</p>
+        <div class="topics">user onboarding • input validation • connection management • UX patterns</div>
+        <a href="https://raw.githubusercontent.com/SarcyHedgehog/VoteTogether/main/tutorial/signin_lobby.md" target="_blank">Read Tutorial</a>
+      </div>
+
+      <div class="tutorial-card">
+        <h3>3. Session-Based Authentication</h3>
+        <p>Understand VoteTogether's unique username + password per session approach, perfect for group games where the same people return regularly without needing permanent accounts.</p>
+        <div class="topics">session identity • group games • reconnection • multi-device support</div>
+        <a href="https://raw.githubusercontent.com/SarcyHedgehog/VoteTogether/main/tutorial/session_based_auth.md" target="_blank">Read Tutorial</a>
+      </div>
+
+      <div class="tutorial-card">
+        <h3>4. Efficient Historical Data</h3>
+        <p>Explore the hybrid storage strategy that maintains detailed recent history while preserving cumulative scores, enabling performance at scale even after hundreds of polls.</p>
+        <div class="topics">data archiving • performance optimization • score persistence • scalability</div>
+        <a href="https://raw.githubusercontent.com/SarcyHedgehog/VoteTogether/main/tutorial/persistence_score.md" target="_blank">Read Tutorial</a>
+      </div>
+
+      <div class="tutorial-card">
+        <h3>5. Persistent Host Role</h3>
+        <p>Master the dual identity system that separates permanent host identity from temporary connections, allowing hosts to leave and return without losing control of their sessions.</p>
+        <div class="topics">host persistence • connection management • role separation • mobile reliability</div>
+        <a href="https://raw.githubusercontent.com/SarcyHedgehog/VoteTogether/main/tutorial/persistence_host.md" target="_blank">Read Tutorial</a>
+      </div>
+    </div>
+
+    <div class="repo-link">
+      <p>All tutorials are maintained in the <a href="https://github.com/SarcyHedgehog/VoteTogether/tree/main/tutorial" target="_blank">VoteTogether repository</a> as the single source of truth.</p>
+    </div>
+  </div>
+</body>
+</html>
