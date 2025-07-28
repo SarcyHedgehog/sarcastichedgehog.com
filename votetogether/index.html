@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VoteTogether</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e293b">
+    <link rel="icon" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@multisynq/client@latest/bundled/multisynq-client.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.11.0/build/sha256.min.js"></script>
+    <script src="config.js"></script>
+    <script>
+        if (!window.APP_CONFIG) {
+            console.warn("config.js not found...");
+            window.APP_CONFIG = { API_KEY: "placeholder", APP_ID: "placeholder", BASE_URL: "placeholder" };
+        }
+    </script>
+    <style>
+        .qr-code { transition: all 0.3s ease; }
+        .qr-code.expanded { transform: scale(3); z-index: 50; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans">
+    <div id="app" class="p-4 max-w-lg mx-auto">
+        <!-- App content is rendered here -->
+    </div>
+
+    <script type="module">
+        const { Model, View, Session } = window.Multisynq;
+        const { sha256 } = window;
+        const config = { apiKey: window.APP_CONFIG.API_KEY, appId: window.APP_CONFIG.APP_ID };
+        const MAX_QUESTIONS = 50;
+
+        // --- DATA MODEL ---
+        class PollModel extends Model {
+            init() { 
+                this.future(0).initializeState();
+                this.subscribe(this.id, "registerUser", "registerUser");
+                this.subscribe(this.id, "addQuestion", "addQuestion");
+                this.subscribe(this.id, "closeCurrentQuestion", "closeCurrentQuestion");
+                this.subscribe(this.id, "vote", "vote");
+                this.subscribe(this.id, "claimHostRole", "claimHostRole");
+                this.subscribe(this.sessionId, "view-join", "viewJoined");
+                this.subscribe(this.sessionId, "view-exit", "viewExited");
+            }
+            
+            initializeState() {
+                if (!this.questions) this.questions = [];
+                if (!this.users) this.users = {};
+                if (!this.players) this.players = {};
+                if (this.currentQuestionIndex === undefined) this.currentQuestionIndex = -1;
+                if (this.hostViewId === undefined) this.hostViewId = null;
+                // ADDED: Persistent host username storage
+                if (this.hostUsername === undefined) this.hostUsername = null;
+            }
+
+            viewJoined(p) { 
+                this.players[p.viewId] = { name: p.viewData.username };
+                
+                // ADDED: If this user is the stored host, restore their host role
+                if (p.viewData.username === this.hostUsername) {
+                    this.hostViewId = p.viewId;
+                }
+                
+                this.publish(this.id, "state-updated"); 
+            }
+            
+            viewExited(p) { 
+                delete this.players[p.viewId]; 
+                
+                // CHANGED: Don't clear hostViewId when host leaves, just set to null temporarily
+                if (p.viewId === this.hostViewId) { 
+                    this.hostViewId = null; 
+                }
+                // hostUsername stays set so they can reconnect as host
+                
+                this.publish(this.id, "state-updated"); 
+            }
+            
+            claimHostRole(claimerId) { 
+                // CHANGED: Only allow claiming if no host is set (first time) or if the stored host reconnects
+                const claimerUsername = this.players[claimerId]?.name;
+                
+                if (!this.hostUsername) {
+                    // First time - anyone can become host
+                    this.hostViewId = claimerId;
+                    this.hostUsername = claimerUsername;
+                    this.publish(this.id, "state-updated");
+                } else if (claimerUsername === this.hostUsername) {
+                    // Stored host reconnecting
+                    this.hostViewId = claimerId;
+                    this.publish(this.id, "state-updated");
+                }
+                // Otherwise, ignore the claim (host role is taken)
+            }
+            
+            checkUser(name, passwordHash) { if (!this.users[name]) return "new_user"; if (this.users[name].passwordHash === passwordHash) return "ok"; return "bad_password"; }
+            registerUser(name, passwordHash) { if (!this.users[name]) { this.users[name] = { passwordHash, pollsVoted: 0, guessesCorrect: 0 }; this.publish(this.id, "state-updated"); } }
+            
+            // CORRECT: Method accepts a single object payload and destructures it.
+            addQuestion({ text, options }) {
+                this.closeCurrentQuestion();
+                const newQuestion = { id: (this.questions.length > 0 ? this.questions[this.questions.length - 1].id : 0) + 1, text, options, votes: {}, closed: false };
+                this.questions.push(newQuestion);
+                if (this.questions.length > MAX_QUESTIONS) { this.questions.shift(); }
+                this.currentQuestionIndex = this.questions.length - 1;
+                this.publish(this.id, "state-updated");
+            }
+
+            closeCurrentQuestion() {
+                if (this.currentQuestionIndex < 0 || this.currentQuestionIndex >= this.questions.length) return;
+                const q = this.questions[this.currentQuestionIndex];
+                if (!q || q.closed || !q.options) return;
+                q.closed = true;
+                const voteCounts = q.options.map(() => 0);
+                Object.values(q.votes).forEach(v => { if(typeof v.vote === 'number' && v.vote < voteCounts.length) voteCounts[v.vote]++; });
+                const maxVotes = Math.max(...voteCounts);
+                const winners = voteCounts.map((count, index) => count === maxVotes ? index : -1).filter(index => index !== -1);
+                const winningIndex = winners.length === 1 ? winners[0] : -1;
+                for (const username in q.votes) {
+                    if (this.users[username]) {
+                        this.users[username].pollsVoted++;
+                        if (q.votes[username].guess === winningIndex) {
+                            this.users[username].guessesCorrect++;
+                        }
+                    }
+                }
+                this.publish(this.id, "state-updated");
+            }
+            
+            // FIXED: Accept single object parameter like addQuestion does
+            vote(voteData) {
+                console.log("🔍 PollModel.vote() called");
+                console.log("   voteData received:", voteData);
+                
+                const { username, voteIndex, guessIndex } = voteData;
+                console.log("   Destructured:", { username, voteIndex, guessIndex });
+                
+                const q = this.questions[this.currentQuestionIndex];
+                if (!q || q.closed || q.votes[username]) return;
+                
+                console.log("   Storing vote data:", { vote: voteIndex, guess: guessIndex });
+                q.votes[username] = { vote: voteIndex, guess: guessIndex };
+                console.log("   Vote stored. q.votes now:", q.votes);
+                
+                this.questions = [...this.questions]; // Force sync of nested vote object.
+                this.publish(this.id, "state-updated");
+            }
+        }
+        PollModel.register("PollModel");
+
+        // --- VIEW ---
+        class PollView extends View {
+            constructor(model) { super(model); this.username = null; this.currentVote = null; }
+            
+            init(data, model) {
+                this.username = data.username;
+                this.model = model;
+                this.subscribe(this.model.id, "state-updated", () => this.render());
+            }
+
+            render() {
+                if (!this.username) return;
+                const app = document.getElementById("app"); 
+                const isHost = this.viewId === this.model.hostViewId;
+                app.innerHTML = `<div class="space-y-6">${this.renderHeader()}${this.renderHostClaimButton()}${this.renderCurrentQuestion()}${isHost ? this.renderHostControls() : ""}${this.renderScoreboard()}${this.renderHistory()}</div>`;
+                this.attachEventListeners();
+            }
+            
+            renderHostClaimButton() { 
+                // CHANGED: Show button logic based on persistent host
+                if (!this.model.hostUsername) {
+                    // No host has ever been set
+                    return `<button id="claim-host-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xl py-3 rounded-lg shadow-lg transition-transform active:scale-95">Become Host</button>`;
+                } else if (this.username === this.model.hostUsername && !this.model.hostViewId) {
+                    // You are the stored host but not currently connected as host
+                    return `<button id="claim-host-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold text-xl py-3 rounded-lg shadow-lg transition-transform active:scale-95">Resume Host Role</button>`;
+                } else if (this.model.hostUsername && !this.model.hostViewId) {
+                    // Someone else is the stored host but not connected
+                    return `<div class="w-full bg-slate-700 text-slate-400 font-bold text-xl py-3 rounded-lg text-center">Host: ${this.model.hostUsername} (offline)</div>`;
+                }
+                // Host is currently online
+                return ''; 
+            }
+            
+            renderHeader() { 
+                const roomCode = window.sessionRoomCode || 'Unknown';
+                return `
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <p class="text-xl text-slate-300">Logged in as: <strong class="text-cyan-400">${this.username}</strong></p>
+                            <p class="text-lg text-slate-400">Room: <strong class="text-amber-400">${roomCode}</strong></p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button id="copy-room-btn" class="bg-purple-600 hover:bg-purple-700 px-3 py-2 rounded-lg font-bold text-sm transition-transform active:scale-95">
+                                Copy Link
+                            </button>
+                            <div id="qr-code" class="qr-code cursor-pointer bg-white p-1 rounded"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            renderCurrentQuestion() {
+                const q = this.model.questions[this.model.currentQuestionIndex];
+                const isHost = this.viewId === this.model.hostViewId;
+                if (!q) { return `<div class="bg-slate-800 p-6 rounded-lg shadow-lg"><h2 class="text-2xl font-bold text-amber-400">Lobby</h2><p>${this.model.hostViewId ? 'Waiting for the host to start a poll.' : 'Waiting for a player to become host.'}</p></div>`; }
+                
+                const myVote = q.votes[this.username];
+                console.log("🎯 renderCurrentQuestion - myVote data:", myVote);
+                
+                let content = `<div class="bg-slate-800 p-6 rounded-lg shadow-lg space-y-4"><h2 class="text-3xl font-bold text-amber-400">${q.text}</h2>`;
+                if (q.closed) {
+                    const voteCounts = q.options.map(() => 0); Object.values(q.votes).forEach(v => { if(typeof v.vote === 'number' && v.vote < voteCounts.length) voteCounts[v.vote]++; }); const totalVotes = voteCounts.reduce((a, b) => a + b, 0);
+                    content += `<ul class="space-y-2 text-lg">` + q.options.map((opt, i) => { const percentage = totalVotes > 0 ? ((voteCounts[i] / totalVotes) * 100).toFixed(0) : 0; return `<li class="flex justify-between"><span><strong>${opt}:</strong></span> <span>${voteCounts[i]} votes (${percentage}%)</span></li>`; }).join("") + `</ul>`;
+                } else if (myVote) {
+                    console.log("   myVote.vote:", myVote.vote, "myVote.guess:", myVote.guess);
+                    console.log("   q.options[myVote.vote]:", q.options[myVote.vote]);
+                    console.log("   q.options[myVote.guess]:", q.options[myVote.guess]);
+                    content += `<p class="text-xl text-green-400">Thanks for voting! Waiting for results...</p><p>You voted for: <strong>${q.options[myVote.vote]}</strong></p><p>You guessed majority: <strong>${q.options[myVote.guess]}</strong></p>`;
+                } else if (isHost) {
+                    content += `<p class="text-xl text-slate-400">You are the host. Waiting for players to vote...</p>`;
+                } else {
+                    if (this.currentVote === null) {
+                        content += `<p class="text-xl">1. What is your vote?</p><div class="flex flex-col space-y-2">` + q.options.map((opt, i) => `<button class="vote-btn w-full bg-cyan-500 hover:bg-cyan-600 p-3 rounded-lg text-lg font-bold transition-transform active:scale-95" data-vote-index="${i}">${opt}</button>`).join("") + `</div>`;
+                    } else {
+                        content += `<p class="text-xl">2. Which option will be the most popular?</p><div class="flex flex-col space-y-2">` + q.options.map((opt, i) => `<button class="guess-btn w-full bg-amber-500 hover:bg-amber-600 p-3 rounded-lg text-lg font-bold transition-transform active:scale-95" data-guess-index="${i}">${opt}</button>`).join("") + `</div>`;
+                    }
+                }
+                content += `</div>`;
+                return content;
+            }
+
+            renderHostControls() { return `<div class="bg-slate-800 p-6 rounded-lg shadow-lg space-y-4"><h3 class="text-2xl font-bold text-cyan-400">Host Controls</h3><input id="question-text" placeholder="Question" class="w-full p-2 rounded bg-slate-700 border-2 border-slate-600 focus:border-cyan-400 focus:outline-none"><input id="question-options" placeholder="Options, comma, separated" class="w-full p-2 rounded bg-slate-700 border-2 border-slate-600 focus:border-cyan-400 focus:outline-none"><div class="flex space-x-2"><button id="add-question-btn" class="flex-1 bg-blue-500 hover:bg-blue-600 p-3 rounded-lg font-bold">Start New Poll</button><button id="close-question-btn" class="flex-1 bg-red-500 hover:bg-red-600 p-3 rounded-lg font-bold">Close Current Poll</button></div></div>`; }
+            
+            renderScoreboard() {
+                const hostUsername = this.model.hostViewId ? this.model.players[this.model.hostViewId]?.name : null;
+                const users = Object.entries(this.model.users).filter(([name]) => name !== hostUsername).map(([name, stats]) => ({ name, ...stats })).sort((a, b) => (b.guessesCorrect / (b.pollsVoted || 1)) - (a.guessesCorrect / (a.pollsVoted || 1)));
+                return `<div class="bg-slate-800 p-6 rounded-lg shadow-lg space-y-4"><h3 class="text-2xl font-bold text-cyan-400">Leaderboard</h3><ul class="space-y-2">` + users.map(user => { const accuracy = user.pollsVoted > 0 ? ((user.guessesCorrect / user.pollsVoted) * 100).toFixed(0) : 0; return `<li class="flex justify-between items-center"><span class="font-bold ${user.name === this.username ? 'text-cyan-400' : ''}">${user.name}</span><span class="text-amber-400">${accuracy}% accuracy (${user.guessesCorrect}/${user.pollsVoted})</span></li>`; }).join("") + `</ul></div>`;
+            }
+
+            renderHistory() { if (!this.model.questions || this.model.questions.length === 0) return ''; const pastQuestions = this.model.questions.slice().reverse(); if(pastQuestions.length === 0) return ''; const liveQuestionId = (this.model.currentQuestionIndex >=0) ? this.model.questions[this.model.currentQuestionIndex].id : -1; const closedQuestions = pastQuestions.filter(q=> q.id !== liveQuestionId && q.closed); if (closedQuestions.length === 0) return ''; return `<div class="bg-slate-800 p-6 rounded-lg shadow-lg space-y-4"><h3 class="text-2xl font-bold text-cyan-400">History</h3><ul class="space-y-4">` + closedQuestions.map(q => { const voteCounts = q.options ? q.options.map(() => 0) : []; if(q.options) { Object.values(q.votes).forEach(v => { if(typeof v.vote === 'number' && v.vote < voteCounts.length) voteCounts[v.vote]++; }); } return `<li><strong class="text-slate-300">${q.text}</strong><ul class="text-sm list-disc list-inside pl-2">` + (q.options || []).map((opt, i) => `<li>${opt}: ${voteCounts[i] || 0} votes</li>`).join("") + `</ul></li>`; }).join("") + `</ul></div>`; }
+            
+            attachEventListeners() {
+                document.getElementById("claim-host-btn")?.addEventListener("click", () => { this.publish(this.model.id, "claimHostRole", this.viewId); });
+                
+                // Copy room link functionality
+                document.getElementById("copy-room-btn")?.addEventListener("click", () => this.copyRoomInfo());
+                
+                // QR code click to expand/collapse
+                document.getElementById("qr-code")?.addEventListener("click", (e) => {
+                    e.target.classList.toggle('expanded');
+                });
+                
+                document.getElementById("add-question-btn")?.addEventListener("click", () => {
+                    const text = document.getElementById("question-text").value.trim();
+                    const options = document.getElementById("question-options").value.split(',').map(o => o.trim()).filter(Boolean);
+                    if (text && options.length >= 2) {
+                        // CORRECT: Publish a single object payload
+                        this.publish(this.model.id, "addQuestion", { text, options });
+                        document.getElementById("question-text").value = '';
+                        document.getElementById("question-options").value = '';
+                    } else {
+                        alert("A question must have text and at least 2 comma-separated options.");
+                    }
+                });
+                document.getElementById("close-question-btn")?.addEventListener("click", () => { this.publish(this.model.id, "closeCurrentQuestion"); });
+                document.querySelectorAll(".vote-btn").forEach(btn => { btn.addEventListener("click", (e) => { this.currentVote = parseInt(e.target.dataset.voteIndex, 10); this.render(); }); });
+                document.querySelectorAll(".guess-btn").forEach(btn => { 
+                    btn.addEventListener("click", (e) => { 
+                        const guessIndex = parseInt(e.target.dataset.guessIndex, 10); 
+                        console.log("🚀 Publishing vote:");
+                        console.log("   username:", this.username);
+                        console.log("   currentVote:", this.currentVote);
+                        console.log("   guessIndex:", guessIndex);
+                        
+                        // FIXED: Send single object like addQuestion does
+                        this.publish(this.model.id, "vote", { 
+                            username: this.username, 
+                            voteIndex: this.currentVote, 
+                            guessIndex: guessIndex 
+                        });
+                        
+                        this.currentVote = null; 
+                    }); 
+                });
+                
+                // Generate QR code after render
+                this.generateQRCode();
+            }
+            
+            copyRoomInfo() {
+                const roomCode = window.sessionRoomCode;
+                if (!roomCode) return;
+                
+                const baseUrl = window.APP_CONFIG.BASE_URL || window.location.href.split('?')[0];
+                const message = `Join my VoteTogether game!\n\nLink: ${baseUrl}\nRoom Code: ${roomCode}`;
+                
+                navigator.clipboard.writeText(message)
+                    .then(() => alert("Room info copied to clipboard!"))
+                    .catch(e => console.error('Failed to copy', e));
+            }
+            
+            generateQRCode() {
+                const qrContainer = document.getElementById("qr-code");
+                if (!qrContainer) return;
+                
+                const baseUrl = window.APP_CONFIG.BASE_URL || window.location.href.split('?')[0];
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(baseUrl)}`;
+                
+                qrContainer.innerHTML = `<img src="${qrUrl}" alt="QR Code" class="w-10 h-10">`;
+            }
+        }
+        
+        // --- APP CONTROLLER ---
+        class AppController {
+            constructor() { this.appContainer = document.getElementById("app"); this.renderLobby(); }
+            renderLobby() { const savedUsername = localStorage.getItem("votetogether-username") || ""; this.appContainer.innerHTML = `<div class="bg-slate-800 p-6 rounded-lg shadow-lg text-center space-y-4"><h1 class="text-4xl font-bold text-cyan-400">VoteTogether</h1><input id="username-input" type="text" placeholder="Your Name" value="${savedUsername}" class="text-center text-xl w-full p-3 rounded bg-slate-700 border-2 border-slate-600 focus:border-cyan-400 focus:outline-none"><input id="password-input" type="password" placeholder="Password" class="text-center text-xl w-full p-3 rounded bg-slate-700 border-2 border-slate-600 focus:border-cyan-400 focus:outline-none"><input id="room-code-input" type="text" placeholder="Room Code (e.g., drinks)" class="text-center text-xl w-full p-3 rounded bg-slate-700 border-2 border-slate-600 focus:border-cyan-400 focus:outline-none" autocapitalize="off" autocomplete="off"><button id="join-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-2xl py-3 rounded-lg shadow transition-transform active:scale-95">Join / Create Room</button></div>`; document.getElementById("join-button").addEventListener("click", () => this.handleJoinClick()); }
+            handleJoinClick() { const name = document.getElementById("username-input").value.trim(); const pass = document.getElementById("password-input").value; const roomCode = document.getElementById("room-code-input").value.trim().toLowerCase(); if (!name || !pass || !roomCode) { alert("Please enter a name, password, and room code."); return; } const passHash = sha256(pass); this.joinSession(name, passHash, roomCode); }
+            async joinSession(username, passwordHash, roomCode) {
+                this.appContainer.innerHTML = `<h1 class="text-4xl font-bold text-cyan-400 text-center animate-pulse">Joining ${roomCode}...</h1>`;
+                try {
+                    // Store room code globally for use in copy functionality
+                    window.sessionRoomCode = roomCode;
+                    
+                    const session = await Session.join({
+                        apiKey: config.apiKey, appId: config.appId,
+                        name: `votetogether-${roomCode}`, password: "vt-default-password",
+                        model: PollModel, 
+                        view: PollView,
+                        viewData: { username: username }
+                    });
+                    
+                    const status = await session.model.checkUser(username, passwordHash);
+
+                    let loginSuccess = false;
+                    if (status === "ok") {
+                        loginSuccess = true;
+                    } else if (status === "new_user") {
+                        session.view.publish(session.model.id, "registerUser", username, passwordHash);
+                        loginSuccess = true; 
+                    } else {
+                        Session.leave(session.id);
+                        alert("Name taken or password incorrect.");
+                        this.renderLobby();
+                        return;
+                    }
+
+                    if (loginSuccess) {
+                        localStorage.setItem("votetogether-username", username);
+                        session.view.init({ username: username }, session.model);
+                        session.view.render();
+                    }
+                } catch (err) {
+                    console.error("Failed to join session:", err);
+                    this.appContainer.innerHTML = `<div class="text-center"><h1 class="text-2xl text-red-500">Error: Could not connect to session.</h1><p class="text-slate-400 mt-2">Please check the developer console for details and try again.</p></div>`;
+                    setTimeout(() => this.renderLobby(), 5000);
+                }
+            }
+        }
+        new AppController();
+    </script>
+</body>
+</html>
