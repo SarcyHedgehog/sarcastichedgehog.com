@@ -6,99 +6,129 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@multisynq/client@latest/bundled/multisynq-client.min.js"></script>
+  <script src="config.js"></script>
   <script src="maps.js"></script>
 </head>
 <body class="bg-black text-white min-h-screen flex flex-col items-center py-10 px-4">
   <h1 class="text-4xl mb-6">Maze Tag 3D</h1>
 
   <div class="w-full max-w-md">
-    <button id="startBtn" class="w-full bg-green-600 hover:bg-green-700 text-white text-lg py-3 rounded mb-4">
-  🎮 Start New Game
-  </button>
+    <h2 class="text-xl mb-3">Create New Game</h2>
 
-  <select id="mapSelect" class="w-full bg-gray-800 text-white p-2 rounded mb-6"></select>
+    <select id="mapSelect" class="w-full bg-gray-800 text-white p-3 rounded mb-3"></select>
 
-<h2 class="text-xl mb-3">Public Games</h2>
-<ul id="roomList" class="space-y-2">
-      <li class="text-gray-400">Loading rooms...</li>
-    </ul>
+    <input
+      id="newRoomInput"
+      type="text"
+      maxlength="24"
+      placeholder="Enter room name or leave blank for random"
+      class="w-full bg-gray-800 text-white p-3 rounded mb-3"
+    />
+
+    <button id="startBtn" class="w-full bg-green-600 hover:bg-green-700 text-white text-lg py-3 rounded mb-8">
+      🎮 Start New Game
+    </button>
+
+    <h2 class="text-xl mb-3">Join Existing Game</h2>
+
+    <div class="flex gap-2">
+      <input
+        id="roomCodeInput"
+        type="text"
+        maxlength="24"
+        placeholder="Enter room name"
+        class="flex-1 bg-gray-800 text-white p-3 rounded"
+      />
+      <button
+        id="joinBtn"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded"
+      >
+        Join
+      </button>
+    </div>
+
+    <p class="text-sm text-gray-400 mt-2">
+      Share the room name with other players so they can join the same game.
+    </p>
   </div>
 
   <script>
-    const APP_ID = "io.multisynq.mazetag.default";
-    const APP_NAME = "mazetag";
-    const ROOM_PREFIX = "mtg-";
+    const APP_ID = window.APP_CONFIG?.APP_ID || "io.multisynq.mazetag.default";
+    const APP_NAME = window.APP_CONFIG?.APP_NAME || "mazetag";
 
     function generateRoomCode() {
-      return ROOM_PREFIX + Array.from({ length: 5 }, () =>
+      return Array.from({ length: 5 }, () =>
         String.fromCharCode(65 + Math.floor(Math.random() * 26))
       ).join("");
     }
 
-    function joinRoom(room) {
-  const map = document.getElementById("mapSelect").value;
-  window.location.href = `mazetag.html?room=${room}&map=${map}`;
-}
+    function populateMapList() {
+      const select = document.getElementById("mapSelect");
+      select.innerHTML = "";
 
-async function fetchRoomList() {
-  const container = document.getElementById("roomList");
-  container.innerHTML = '';
+      const maps = Array.isArray(window.MAZE_MAPS) ? window.MAZE_MAPS : [];
 
-      try {
-        const presenceList = await Multisynq.Session.presenceMultiple({
-          appId: APP_ID,
-          name: APP_NAME,
-          roomPrefix: ROOM_PREFIX
-        });
-
-        const matchingRooms = Object.entries(presenceList)
-          .filter(([room]) => room.startsWith(ROOM_PREFIX))
-          .sort((a, b) => b[1].viewIds.length - a[1].viewIds.length); // sort by player count desc
-
-        if (matchingRooms.length === 0) {
-          container.innerHTML = '<li class="text-gray-500">No active games found.</li>';
-          return;
-        }
-
-        for (const [room, info] of matchingRooms) {
-          const players = info.viewIds.length;
-          const li = document.createElement('li');
-          li.innerHTML = `
-            <button class="w-full text-left px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded flex justify-between items-center"
-              onclick="joinRoom('${room}')">
-              <span class="font-mono text-yellow-400">${room.toUpperCase()}</span>
-              <span class="text-sm text-gray-300">${players} / 8</span>
-            </button>`;
-          container.appendChild(li);
-        }
-      } catch (e) {
-        console.error("Error fetching room list", e);
-        container.innerHTML = '<li class="text-red-500">Failed to load rooms.</li>';
+      if (maps.length === 0) {
+        const option = document.createElement("option");
+        option.value = "map1";
+        option.textContent = "map1";
+        select.appendChild(option);
+        return;
       }
+
+      maps.forEach(map => {
+        const option = document.createElement("option");
+        option.value = map.id;
+        option.textContent = map.title || map.id;
+        select.appendChild(option);
+      });
+    }
+
+    function normaliseRoomName(input) {
+      return input
+        .trim()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-zA-Z0-9\-_]/g, "")
+        .slice(0, 24);
+    }
+
+    function goToRoom(room) {
+      const map = document.getElementById("mapSelect").value;
+      window.location.href = `mazetag.html?room=${encodeURIComponent(room)}&map=${encodeURIComponent(map)}`;
     }
 
     document.getElementById("startBtn").addEventListener("click", () => {
-    const newRoom = generateRoomCode();
-    const map = document.getElementById("mapSelect").value;
-    window.location.href = `mazetag.html?room=${newRoom}&map=${map}`;
-});
+      const input = document.getElementById("newRoomInput");
+      const typedRoom = normaliseRoomName(input.value);
+      const room = typedRoom || generateRoomCode();
+      goToRoom(room);
+    });
 
-    // Kick things off
+    document.getElementById("joinBtn").addEventListener("click", () => {
+      const input = document.getElementById("roomCodeInput");
+      const room = normaliseRoomName(input.value);
+
+      if (!room) {
+        alert("Please enter a room name.");
+        return;
+      }
+
+      goToRoom(room);
+    });
+
+    document.getElementById("newRoomInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("startBtn").click();
+      }
+    });
+
+    document.getElementById("roomCodeInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("joinBtn").click();
+      }
+    });
+
     populateMapList();
-    fetchRoomList();
-    setInterval(fetchRoomList, 4000); // Refresh every 4s
-  function populateMapList() {
-  const select = document.getElementById("mapSelect");
-
-  select.innerHTML = "";
-
-  window.MAZE_MAPS.forEach(map => {
-    const option = document.createElement("option");
-    option.value = map.id;
-    option.textContent = map.title;
-    select.appendChild(option);
-  });
-}
   </script>
 </body>
 </html>
