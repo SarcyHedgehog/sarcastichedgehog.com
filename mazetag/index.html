@@ -57,7 +57,7 @@
           const li = document.createElement('li');
           li.innerHTML = `
             <button class="w-full text-left px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded flex justify-between items-center"
-              onclick="window.location.href='game.html?room=${room}'">
+              onclick="window.location.href='mazetag.html?room=${room}'">
               <span class="font-mono text-yellow-400">${room.toUpperCase()}</span>
               <span class="text-sm text-gray-300">${players} / 8</span>
             </button>`;
@@ -71,7 +71,7 @@
 
     document.getElementById("startBtn").addEventListener("click", () => {
       const newRoom = generateRoomCode();
-      window.location.href = `game.html?room=${newRoom}`;
+      window.location.href = `mazetag.html?room=${newRoom}`;
     });
 
     // Kick things off
