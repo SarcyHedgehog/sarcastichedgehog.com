@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@multisynq/client@latest/bundled/multisynq-client.min.js"></script>
     <script src="config.js"></script>
+    <script src="map1.js"></script>
     <script>
         if (!window.APP_CONFIG) {
             console.warn("config.js not found or APP_CONFIG not set. Using placeholder API Key and App ID.");
@@ -121,10 +122,7 @@
 
         const WALL_NORTH = 1; const WALL_EAST = 2; const WALL_SOUTH = 4; const WALL_WEST = 8;
 
-        const MAZE_DATA = [
-            13, 5, 5, 5, 5, 5, 5, 1, 5, 5, 1, 5, 5, 5, 3, 11, 9, 5, 5, 1, 5, 5, 3, 8, 5, 3, 10, 13, 1, 5, 2, 10, 10, 9, 3, 8, 5, 3, 10, 12, 7, 14, 10, 15, 10, 15, 8, 6, 10, 10, 8, 2, 13, 2, 12, 5, 5, 5, 4, 5, 4, 7, 12, 3, 10, 10, 14, 10, 9, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 8, 0, 5, 0, 4, 5, 5, 5, 5, 5, 3, 9, 1, 5, 3, 10, 10, 8, 3, 10, 9, 5, 5, 5, 5, 3, 10, 10, 10, 15, 10, 10, 10, 10, 10, 10, 10, 15, 15, 15, 15, 10, 10, 14, 10, 15, 10, 10, 10, 10, 10, 10, 12, 5, 1, 5, 5, 0, 4, 5, 0, 5, 4, 6, 10, 10, 12, 2, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 15, 15, 10, 12, 5, 0, 5, 5, 2, 15, 15, 10, 15, 15, 8, 5, 5, 3, 8, 5, 5, 2, 15, 15, 8, 5, 5, 2, 15, 15, 8, 5, 3, 10, 10, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 10, 10, 10, 15, 15, 8, 5, 5, 0, 5, 5, 0, 5, 5, 2, 15, 10, 10, 8, 5, 5, 2, 15, 15, 10, 15, 15, 10, 15, 15, 10, 15, 14, 10, 14, 15, 15, 12, 5, 5, 4, 5, 5, 4, 5, 5, 4, 5, 5, 6
-        ];
-
+        
         // --- Screen Orientation and Fullscreen Logic ---
         let isLockedToLandscape = false;
         let currentActualOrientation = ''; // To store current actual orientation
