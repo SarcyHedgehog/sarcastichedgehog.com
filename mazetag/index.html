@@ -6,17 +6,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@multisynq/client@latest/bundled/multisynq-client.min.js"></script>
+  <script src="maps.js"></script>
 </head>
 <body class="bg-black text-white min-h-screen flex flex-col items-center py-10 px-4">
   <h1 class="text-4xl mb-6">Maze Tag 3D</h1>
 
   <div class="w-full max-w-md">
-    <button id="startBtn" class="w-full bg-green-600 hover:bg-green-700 text-white text-lg py-3 rounded mb-6">
-      🎮 Start New Game
-    </button>
+    <button id="startBtn" class="w-full bg-green-600 hover:bg-green-700 text-white text-lg py-3 rounded mb-4">
+  🎮 Start New Game
+  </button>
 
-    <h2 class="text-xl mb-3">Public Games</h2>
-    <ul id="roomList" class="space-y-2">
+  <select id="mapSelect" class="w-full bg-gray-800 text-white p-2 rounded mb-6"></select>
+
+<h2 class="text-xl mb-3">Public Games</h2>
+<ul id="roomList" class="space-y-2">
       <li class="text-gray-400">Loading rooms...</li>
     </ul>
   </div>
@@ -32,9 +35,14 @@
       ).join("");
     }
 
-    async function fetchRoomList() {
-      const container = document.getElementById("roomList");
-      container.innerHTML = '';
+    function joinRoom(room) {
+  const map = document.getElementById("mapSelect").value;
+  window.location.href = `mazetag.html?room=${room}&map=${map}`;
+}
+
+async function fetchRoomList() {
+  const container = document.getElementById("roomList");
+  container.innerHTML = '';
 
       try {
         const presenceList = await Multisynq.Session.presenceMultiple({
@@ -57,7 +65,7 @@
           const li = document.createElement('li');
           li.innerHTML = `
             <button class="w-full text-left px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded flex justify-between items-center"
-              onclick="window.location.href='mazetag.html?room=${room}'">
+              onclick="joinRoom('${room}')">
               <span class="font-mono text-yellow-400">${room.toUpperCase()}</span>
               <span class="text-sm text-gray-300">${players} / 8</span>
             </button>`;
@@ -70,13 +78,27 @@
     }
 
     document.getElementById("startBtn").addEventListener("click", () => {
-      const newRoom = generateRoomCode();
-      window.location.href = `mazetag.html?room=${newRoom}`;
-    });
+    const newRoom = generateRoomCode();
+    const map = document.getElementById("mapSelect").value;
+    window.location.href = `mazetag.html?room=${newRoom}&map=${map}`;
+});
 
     // Kick things off
+    populateMapList();
     fetchRoomList();
     setInterval(fetchRoomList, 4000); // Refresh every 4s
+  function populateMapList() {
+  const select = document.getElementById("mapSelect");
+
+  select.innerHTML = "";
+
+  window.MAZE_MAPS.forEach(map => {
+    const option = document.createElement("option");
+    option.value = map.id;
+    option.textContent = map.title;
+    select.appendChild(option);
+  });
+}
   </script>
 </body>
 </html>
