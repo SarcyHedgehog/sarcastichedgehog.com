@@ -15,8 +15,10 @@
   <div class="w-full max-w-md">
     <h2 class="text-xl mb-3">Create New Game</h2>
 
+    <label for="mapSelect" class="block text-sm text-gray-300 mb-2">Map</label>
     <select id="mapSelect" class="w-full bg-gray-800 text-white p-3 rounded mb-3"></select>
 
+    <label for="newRoomInput" class="block text-sm text-gray-300 mb-2">Room name</label>
     <input
       id="newRoomInput"
       type="text"
@@ -31,6 +33,7 @@
 
     <h2 class="text-xl mb-3">Join Existing Game</h2>
 
+    <label for="roomCodeInput" class="block text-sm text-gray-300 mb-2">Room name</label>
     <div class="flex gap-2">
       <input
         id="roomCodeInput"
@@ -48,8 +51,13 @@
     </div>
 
     <p class="text-sm text-gray-400 mt-2">
-      Share the room name with other players so they can join the same game.
+      Everyone must use the same room name and the same map.
     </p>
+
+    <div class="mt-6 p-3 rounded bg-gray-900 text-sm text-gray-300">
+      <div><span class="text-gray-400">Selected map:</span> <span id="selectedMapLabel">—</span></div>
+      <div><span class="text-gray-400">Session room used:</span> <span id="sessionPreview" class="font-mono">—</span></div>
+    </div>
   </div>
 
   <script>
@@ -92,9 +100,37 @@
         .slice(0, 24);
     }
 
-    function goToRoom(room) {
-      const map = document.getElementById("mapSelect").value;
-      window.location.href = `mazetag.html?room=${encodeURIComponent(room)}&map=${encodeURIComponent(map)}`;
+    function getSelectedMap() {
+      const select = document.getElementById("mapSelect");
+      return select?.value || "map1";
+    }
+
+    function buildSessionRoom(baseRoom, mapId) {
+      return `${baseRoom}_${mapId}`;
+    }
+
+    function getCurrentPreviewRoom() {
+      const raw = document.getElementById("newRoomInput").value;
+      const baseRoom = normaliseRoomName(raw) || "ABCDE";
+      const map = getSelectedMap();
+      return buildSessionRoom(baseRoom, map);
+    }
+
+    function updatePreview() {
+      const map = getSelectedMap();
+      const mapLabel = document.getElementById("selectedMapLabel");
+      const preview = document.getElementById("sessionPreview");
+
+      mapLabel.textContent = map;
+      preview.textContent = getCurrentPreviewRoom();
+    }
+
+    function goToRoom(baseRoom) {
+      const map = getSelectedMap();
+      const combinedRoom = buildSessionRoom(baseRoom, map);
+
+      window.location.href =
+        `mazetag.html?room=${encodeURIComponent(combinedRoom)}&map=${encodeURIComponent(map)}`;
     }
 
     document.getElementById("startBtn").addEventListener("click", () => {
@@ -106,15 +142,17 @@
 
     document.getElementById("joinBtn").addEventListener("click", () => {
       const input = document.getElementById("roomCodeInput");
-      const room = normaliseRoomName(input.value);
+      const baseRoom = normaliseRoomName(input.value);
 
-      if (!room) {
+      if (!baseRoom) {
         alert("Please enter a room name.");
         return;
       }
 
-      goToRoom(room);
+      goToRoom(baseRoom);
     });
+
+    document.getElementById("newRoomInput").addEventListener("input", updatePreview);
 
     document.getElementById("newRoomInput").addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -128,7 +166,12 @@
       }
     });
 
+    document.getElementById("mapSelect").addEventListener("change", updatePreview);
+
     populateMapList();
+    updatePreview();
+
+    console.log("MazeTag lobby ready", { APP_ID, APP_NAME });
   </script>
 </body>
 </html>
