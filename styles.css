@@ -73,7 +73,7 @@ header {
   font-weight: bold;
 }
 
-/* Ariolasoft logo & X logo in header */
+/* Linked image logos */
 .header-right img {
   height: 28px;
   width: auto;
@@ -322,4 +322,3 @@ footer a:hover {
       color: #aaa;
       text-decoration: underline;
     }
-  

@@ -1,31 +1,30 @@
 <!DOCTYPE html>
-<html>
-  <head><meta charset="utf-8"></head>
-  <body>
-    <script type="module">
-      import {load} from "https://croquet.io/webshowcase/v1.js";
-      load({
-        title: "My Web Showcase", 
-        showcase: "gallery", 
-        cards: [
-          // each item in cards array has a 'place' to specify the location in the art gallery
-          // 'type' is either "image", "pdf", or "video"
-          // 'path' specifies the location of the asset, either as full URL or as path relative to this html file
-          {place: 1, type: "image", path: "https://www.sarcastichedgehog.com/images/logo.png"},
-          {place: 2, type: "pdf", path: "https://croquet.io/webshowcase/site/CompanyDeck.pdf"},
-          {place: 3, type: "video", path: "https://croquet.io/webshowcase/site/CustomerVideo.mp4", muted: false},
-          {place: 4, type: "image", path: "https://www.sarcastichedgehog.com/titles/images/loderunner.png"},
-          {place: 5, type: "image", path: "https://www.sarcastichedgehog.com/titles/images/dmm.png", urlLink: "https://www.sarcastichedgehog.com/titles/dmm.html"},
-          {place: 6, type: "image", path: "https://croquet.io/webshowcase/site/sunset-tree-on-hill-1.jpg"},
-          {place: 7, type: "image", path: "https://www.sarcastichedgehog.com/titles/images/choplifter.jpg"},
-          {place: 8, type: "image", path: "https://www.sarcastichedgehog.com/titles/images/axisassassin.png"},
-          {place: 9, type: "image", path: "https://www.sarcastichedgehog.com/titles/images/archon.png"},
-        ],
-        privacy: "invite", // "public" or "invite"
-        voiceChat: true,
-        appId: "io.croquet.james.poole.webshowcase",
-        apiKey: "1HGJNmo2Hh7K5gPh3AIBzpLHkGntet8ANHexfD400",
-      });
-    </script>
-  </body>
-</html>w
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MHS Historical Documents</title>
+  <style>
+    body { margin: 0; padding: 2rem; background: #111827; color: #f8fafc; font-family: system-ui, sans-serif; }
+    main { max-width: 1100px; margin: auto; }
+    a { color: #38bdf8; }
+    .documents { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; padding: 0; list-style: none; }
+    .documents a { display: block; padding: 1rem; border: 1px solid #334155; border-radius: .75rem; background: #1e293b; text-decoration: none; }
+    .documents a:hover { border-color: #38bdf8; }
+  </style>
+</head>
+<body>
+  <main>
+    <p><a href="../index.html">← Sarcastic Hedgehog</a></p>
+    <h1>MHS Historical Documents</h1>
+    <p>High-resolution historical scans retained by Sarcastic Hedgehog.</p>
+    <ul class="documents">
+      <li><a href="images/AJRR_000.png">AJRR — page 1</a></li>
+      <li><a href="images/AJRR_001.png">AJRR — page 2</a></li>
+      <li><a href="images/Belmont At St Helens 1940. ALP mid centre.png">Belmont at St Helens, 1940</a></li>
+      <li><a href="images/Calendar1946_000.png">1946 calendar — page 1</a></li>
+      <li><a href="images/Calendar1946_001.png">1946 calendar — page 2</a></li>
+    </ul>
+  </main>
+</body>
+</html>
