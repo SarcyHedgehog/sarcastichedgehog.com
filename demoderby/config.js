@@ -1,4 +1,6 @@
 window.APP_CONFIG = {
-  API_KEY: "2atXt6dTbNaKKO83iB4tsYDfmpusH0C6veTYXjy7Om",
-  APP_ID: "com.sarcastichedgehog.demoderby"
+  PHOTON_APP_ID: "f396fd8f-e655-4293-b9a5-a07e804cebcb",
+  PHOTON_REGION: "eu",
+  PHOTON_SDK_URL: "vendor/photon.min.js",
+  DEBUG: false,
 };

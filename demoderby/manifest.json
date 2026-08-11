@@ -1,0 +1,10 @@
+{
+  "name": "DemoDerby — Photon Arena",
+  "short_name": "DemoDerby",
+  "description": "A real-time multiplayer demolition derby.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090b0e",
+  "theme_color": "#e44832",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

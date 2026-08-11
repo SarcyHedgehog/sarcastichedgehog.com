@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="92" fill="#0b0e11"/>
+  <path d="M62 326h388l-29 89H91z" fill="#e44832"/>
+  <path d="M106 292l48-129h204l48 129z" fill="#d8dde0" stroke="#1b2024" stroke-width="22"/>
+  <path d="M186 185h140l31 82H155z" fill="#394b52"/>
+  <circle cx="153" cy="353" r="46" fill="#16191b" stroke="#f2d45c" stroke-width="14"/>
+  <circle cx="359" cy="353" r="46" fill="#16191b" stroke="#f2d45c" stroke-width="14"/>
+  <path d="M72 112h368" stroke="#f2d45c" stroke-width="34" stroke-dasharray="42 24"/>
+  <text x="256" y="485" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="55" font-weight="900">DEMO DERBY</text>
+</svg>

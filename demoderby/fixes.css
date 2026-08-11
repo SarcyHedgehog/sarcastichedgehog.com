@@ -1,0 +1,43 @@
+dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  margin: 0;
+  background: rgba(5, 6, 7, 0.96);
+}
+.practice {
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px;
+  border: 1px solid #4b5359;
+  background: #20262a;
+  color: #dfe3e4;
+  font-weight: 850;
+  cursor: pointer;
+}
+.damage-hud { width: 255px; }
+.damage-ledger-head, .ledger-row { clear: both; display: grid; grid-template-columns: 18px 1fr 1fr; align-items: center; gap: 8px; }
+.damage-ledger-head { padding-top: 7px; margin-top: 5px; border-top: 1px solid #49443c; color: #8f9495; font-size: 8px; letter-spacing: .7px; text-align: right; }
+.damage-ledger { display: grid; gap: 2px; padding-top: 3px; }
+.ledger-row { min-height: 16px; text-align: right; font-variant-numeric: tabular-nums; }
+.ledger-row i { width: 10px; height: 10px; border-radius: 50%; background: var(--impact); box-shadow: 0 0 7px var(--impact); }
+.ledger-row b { color: white; font-size: 11px; }
+.empty-ledger { color: #676d70; font-size: 9px; padding: 3px 0; }
+body.spectating .touch-controls { display: none !important; }
+body.spectating .damage-hud, body.spectating .speed-hud { display: none; }
+.arena-wrap > .spectator-tools {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  min-width: min(330px, calc(100vw - 32px));
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #5a5144;
+  background: rgba(8, 10, 12, .9);
+  box-shadow: 0 10px 35px #000b;
+  text-align: center;
+}
+.arena-wrap > .spectator-tools label { color: #f2d45c; font-weight: 900; letter-spacing: 1.2px; }
+.arena-wrap > .spectator-tools select { margin-top: 6px; }
