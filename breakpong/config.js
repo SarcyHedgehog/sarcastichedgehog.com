@@ -1,4 +1,6 @@
 window.APP_CONFIG = {
-  API_KEY: "2atXt6dTbNaKKO83iB4tsYDfmpusH0C6veTYXjy7Om",
-  APP_ID: "com.sarcastichedgehog.breakpong"
+  PHOTON_APP_ID: "4687ed7f-7309-4845-8697-3a69053f0f83",
+  PHOTON_REGION: "eu",
+  PHOTON_SDK_URL: "vendor/photon.min.js",
+  DEBUG: false,
 };
