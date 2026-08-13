@@ -23,7 +23,9 @@ export class PhotonRoom extends EventTarget {
     this.client.setLogLevel(this.config.DEBUG ? Photon.LogLevel.DEBUG : Photon.LogLevel.WARN);
     this.client.onStateChange = (state) => {
       this.status(Client.StateToName?.(state) || String(state));
-      if (state === Client.State.JoinedLobby) this.client.joinRoom(this.roomCode, { createIfNotExists: true }, { isVisible: false, maxPlayers: 12, playerTTL: 30_000, roomTTL: 300_000 });
+      // Do not retain inactive actors. A retained actor looks like a second
+      // player during a quick refresh/rejoin and can start a phantom match.
+      if (state === Client.State.JoinedLobby) this.client.joinRoom(this.roomCode, { createIfNotExists: true }, { isVisible: false, maxPlayers: 12, playerTTL: 0, roomTTL: 300_000 });
       if (state === Client.State.Disconnected) { this.connected = false; this.stopAuthority(); this.status("Disconnected"); }
     };
     this.client.onJoinRoom = (created) => this.onJoinRoom(created);
@@ -49,8 +51,12 @@ export class PhotonRoom extends EventTarget {
       this.model = new GameModel(randomSeed());
       this.model.join(this.myActor()); this.startAuthority();
     } else if (this.isMaster()) {
-      this.consumeRoomState();
+      // Restore without publishing first. The room property can still contain
+      // two departed players and a countdown; emitting that transient state
+      // used to launch the camera intro before rebuildPlayers corrected it.
+      this.consumeRoomState(false);
       this.model ||= new GameModel(randomSeed());
+      if (!this.hasReturningPlayer()) this.model = new GameModel(randomSeed());
       this.rebuildPlayers(); this.startAuthority();
     } else {
       this.client.raiseEvent(EVENT.HELLO, { name: this.name }, { targetActors: [this.client.myRoomMasterActorNr()] });
@@ -68,7 +74,7 @@ export class PhotonRoom extends EventTarget {
   onActorLeave(actor) {
     if (this.isMaster() && this.model) { this.model.leave(actor.actorNr); this.broadcast(true); }
     setTimeout(() => {
-      if (this.connected && this.isMaster() && !this.loop) { this.consumeRoomState(); this.rebuildPlayers(); this.startAuthority(); }
+      if (this.connected && this.isMaster() && !this.loop) { this.consumeRoomState(false); this.rebuildPlayers(); this.startAuthority(); }
     }, 100);
     this.emitPresence();
   }
@@ -117,6 +123,12 @@ export class PhotonRoom extends EventTarget {
     for (const actor of actors) this.model.join(actor);
   }
 
+  hasReturningPlayer() {
+    if (!this.model) return false;
+    const actors = new Set(Object.keys(this.client.myRoomActors()).map(Number));
+    return Object.values(this.model.players).some((actor) => actor && actors.has(Number(actor)));
+  }
+
   broadcast(persist = false, targetActor = null) {
     if (!this.model || !this.connected || !this.isMaster()) return;
     const snapshot = this.model.snapshot(); this.consumeSnapshot(snapshot);
@@ -125,13 +137,13 @@ export class PhotonRoom extends EventTarget {
     this.client.raiseEvent(EVENT.SNAPSHOT, snapshot, options);
   }
 
-  consumeRoomState() {
+  consumeRoomState(emit = true) {
     const raw = this.client.myRoom().getCustomProperty(STATE_PROPERTY);
     if (!raw) return;
     try {
       const snapshot = typeof raw === "string" ? JSON.parse(raw) : raw;
       if (this.isMaster()) { this.model = new GameModel(snapshot.seed); this.model.restore(snapshot); }
-      this.consumeSnapshot(snapshot);
+      if (emit) this.consumeSnapshot(snapshot);
     } catch (error) { this.error(`Could not restore room: ${error.message}`); }
   }
 

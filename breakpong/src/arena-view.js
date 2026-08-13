@@ -64,9 +64,11 @@ export class ArenaView {
     const geometry=new THREE.BoxGeometry(data.width*.86,.22,data.depth*.88);const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: data.type === "black" ? .08 : .38, metalness: .62, roughness: .28 }));mesh.castShadow=mesh.receiveShadow=true;const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geometry),new THREE.LineBasicMaterial({color:0x111416,transparent:true,opacity:.7}));mesh.add(edges);this.scene.add(mesh);return mesh;
   }
 
-  update(snapshot) { const old=this.current;this.previous=old||snapshot;this.current=snapshot;this.receivedAt=performance.now();this.syncBricks(snapshot.bricks);if((!old||old.state!=="countdown")&&snapshot.state==="countdown")this.startIntro();if(old)this.detectCues(old,snapshot);this.matchPoint=Math.max(snapshot.score[1],snapshot.score[2])===9&&!snapshot.state.startsWith("won"); }
+  update(snapshot) { const old=this.current;this.previous=old||snapshot;this.current=snapshot;this.receivedAt=performance.now();this.syncBricks(snapshot.bricks);if((!old||old.state!=="countdown")&&snapshot.state==="countdown")this.startIntro();else if(this.intro&&["waiting","disconnected"].includes(snapshot.state))this.resetCamera();else if(!old&&snapshot.state!=="countdown")this.resetCamera();if(old)this.detectCues(old,snapshot);this.matchPoint=Math.max(snapshot.score[1],snapshot.score[2])===9&&!snapshot.state.startsWith("won"); }
 
   startIntro(){this.intro={started:performance.now(),duration:4800};this.camera.position.set(0,.48,1.65);this.keyLight.intensity=.05;this.rimLight.intensity=0;for(const light of this.showLights)light.intensity=0}
+
+  resetCamera(){this.intro=null;this.camera.position.copy(this.cameraHome);this.camera.up.set(0,1,0);this.camera.lookAt(0,0,0);this.camera.updateMatrixWorld(true);this.keyLight.intensity=3.8;this.rimLight.intensity=13;for(const light of this.showLights)light.intensity=0}
 
   detectCues(old,next) {
     if(old.state==="countdown"&&next.countdown!==old.countdown)this.cue(next.countdown?"countdown":"start");
