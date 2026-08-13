@@ -1,5 +1,5 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js";
-import { BRICK, C, SNAPSHOT_MS } from "./constants.js?v=20260813-4";
+import { BRICK, C, SNAPSHOT_MS } from "./constants.js?v=20260813-5";
 
 export class ArenaView {
   constructor(host) {
@@ -9,7 +9,7 @@ export class ArenaView {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.1;
-    host.append(this.renderer.domElement); this.build();
+    this.renderer.domElement.style.width="100%";this.renderer.domElement.style.height="100%";this.renderer.domElement.style.display="block";host.append(this.renderer.domElement); this.build();
     this.resize = this.resize.bind(this); addEventListener("resize", this.resize); this.resize(); this.animate();
   }
 
@@ -115,5 +115,5 @@ export class ArenaView {
   animateIntro(){if(!this.intro)return;const raw=Math.min(1,(performance.now()-this.intro.started)/this.intro.duration),ease=raw<.5?4*raw*raw*raw:1-Math.pow(-2*raw+2,3)/2;this.camera.position.copy(this.cameraHome);this.camera.fov=THREE.MathUtils.lerp(68,48,ease);this.camera.updateProjectionMatrix();this.camera.lookAt(0,0,0);const lights=Math.max(0,Math.min(1,(raw-.12)/.58));this.keyLight.intensity=3.8*lights;this.rimLight.intensity=13*lights;for(let i=0;i<this.showLights.length;i++){const light=this.showLights[i];light.intensity=raw<.82?22*Math.sin(Math.min(1,raw/.82)*Math.PI):0;light.target.position.x=Math.sin(raw*Math.PI*4+i*Math.PI)*2.6;light.target.position.z=Math.cos(raw*Math.PI*3+i)*1.6}if(raw>=1)this.resetCamera()}
   animateDeliveryMechanism(d,openness){const open=d.phase==="growing"?openness:d.phase==="closing"?openness:1;this.deliveryMechanism.rotation.z+=d.phase==="flying"?.018:.006;for(const pivot of this.deliveryMechanism.userData.blades)pivot.children[0].position.x=.18+open*.43;for(const door of this.deliveryMechanism.userData.doors)door.mesh.position.x=door.side*(.28+open*.55)}
   animateMatchPoint(){if(this.intro)return;const active=this.matchPoint,t=performance.now()*.0045,pulse=.5+.5*Math.sin(t*2.4),leader=this.current?.score[1]===9?0x15d9ff:0xff2b8a,other=this.current?.score[1]===9?0xff2b8a:0x15d9ff;if(active){for(let i=0;i<this.showLights.length;i++){const light=this.showLights[i];light.color.setHex((Math.floor(t)+i)%2?leader:other);light.intensity=12+16*pulse;light.target.position.x=Math.sin(t*1.7+i*Math.PI)*3;light.target.position.z=Math.cos(t*1.3+i)*2}for(let i=0;i<this.chamberStrips.length;i++){const color=(Math.floor(t*1.4)+i)%2?leader:other;this.chamberStrips[i].material.color.setHex(color);this.chamberGlows[i].color.setHex(color);this.chamberGlows[i].intensity=5+7*pulse}}else{for(const light of this.showLights)light.intensity=0;for(let i=0;i<this.chamberStrips.length;i++){this.chamberStrips[i].material.color.setHex(0xd9f5ff);this.chamberGlows[i].color.setHex(0xc8efff);this.chamberGlows[i].intensity=4}}}
-  resize() { const box = this.host.getBoundingClientRect(); this.renderer.setSize(box.width, box.height, false); this.camera.aspect = box.width / box.height; this.camera.updateProjectionMatrix(); }
+  resize() { const box = this.host.getBoundingClientRect(); if(!box.width||!box.height)return;this.renderer.setSize(box.width, box.height, false);this.renderer.domElement.style.width=`${box.width}px`;this.renderer.domElement.style.height=`${box.height}px`;this.camera.aspect = box.width / box.height; this.camera.updateProjectionMatrix(); }
 }

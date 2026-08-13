@@ -1,5 +1,5 @@
-import { GameModel } from "./game-model.js?v=20260813-4";
-import { SNAPSHOT_MS, TICK_MS } from "./constants.js?v=20260813-4";
+import { GameModel } from "./game-model.js?v=20260813-5";
+import { SNAPSHOT_MS, TICK_MS } from "./constants.js?v=20260813-5";
 
 const EVENT = Object.freeze({ HELLO: 1, INPUT: 2, SNAPSHOT: 3, REQUEST_STATE: 4, RESET: 5 });
 const STATE_PROPERTY = "bp_state";
