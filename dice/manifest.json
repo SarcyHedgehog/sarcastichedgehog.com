@@ -1,21 +1,15 @@
 {
-  "name": "Poker Dice",
+  "name": "Poker Dice V2",
   "short_name": "Poker Dice",
-  "start_url": ".",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#1e293b",
-  "theme_color": "#1e293b",
-  "description": "A multiplayer Poker Dice game.",
+  "orientation": "any",
+  "background_color": "#050a13",
+  "theme_color": "#08111f",
+  "description": "Poker Dice and shared-hand Liar's Dice for two or more players.",
   "icons": [
-    {
-      "src": "icons/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    { "src": "icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }

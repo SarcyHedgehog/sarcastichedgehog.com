@@ -1,131 +1,68 @@
-# 🎲 Poker Dice
+# Poker Dice V2
 
-A modern, multiplayer Poker Dice game built as a Progressive Web App (PWA). This application uses Three.js for a 3D dice experience and is powered by the serverless Multisynq platform for real-time state synchronization.
+A mobile-first Photon Realtime game containing two modes in one app:
 
-This project was developed as a "Vibe Coding" experiment, showcasing rapid development from concept to a complete, deployable application.
+- **Poker Dice** — every player gets up to three public rolls; the strongest poker hand wins.
+- **Liar's Dice** — one concealed five-dice hand passes around the table. Accept it and make a higher claim, or call the previous player a liar. A failed claimant or challenger is eliminated; the last player standing wins.
 
-![Screenshot of Poker Dice Game](https://www.sarcastichedgehog.com/images/poker-dice-screenshot.png)
-*Note: You will need to replace this with your own screenshot URL.*
+The dice use the traditional poker faces **9, 10, Jack, Queen, King, Ace**.
 
----
+## Local setup
 
-## ✨ Features
+1. Copy `config.example.js` to `config.js`.
+2. Put the Photon Realtime JavaScript application ID in `PHOTON_APP_ID`.
+3. Serve the folder over HTTP. `npm run serve` uses port 8773.
+4. Open the same table code in two different browsers or private profiles.
 
-* **Real-Time Multiplayer:** Create or join game rooms using a simple 5-letter code.
-* **Classic Poker Dice Rules:** Each player gets up to three rolls per turn to achieve the best hand.
-* **3D Dice Interaction:** Built with Three.js, dice can be "held" by clicking on them, which visually separates them for the next roll.
-* **Synchronized Animations:** All players see the dice tumble and settle in real-time.
-* **Automatic Hand Evaluation:** The game automatically calculates and displays the best hand for each player.
-* **Progressive Web App (PWA):** Fully installable on both mobile and desktop devices for an app-like experience.
-* **Responsive Design:** Mobile-first layout that works great on any screen size.
+`config.js` is ignored by Git. Do not commit it.
 
----
+## Liar's Dice rules used here
 
-## 🛠️ Tech Stack
+- The host chooses one or two rerolls in the lobby.
+- The opening player receives a freshly rolled concealed hand.
+- After a claim, the next player must choose **Accept dice** or **Call liar** before seeing the hand.
+- Accepting reveals the hand only to that player. They may keep any dice, use the configured rerolls, and must make a strictly higher claim. They may also reroll nothing and bluff immediately.
+- Calling liar reveals the dice to everyone. If the real hand meets or beats the claim, the challenger is eliminated; otherwise the claimant is eliminated.
+- The challenge winner opens the next round. The last active player wins.
 
-* **Real-Time Backend:** [Multisynq](https://multisynq.io)
-* **3D Rendering:** [Three.js](https://threejs.org/)
-* **Core Logic:** Vanilla JavaScript (ESM)
-* **Styling:** [Tailwind CSS](https://tailwindcss.com/) (via CDN Browser Build)
+Claims use poker categories and the significant face values. Kickers are used to rank final Poker Dice results but deliberately omitted from Liar's Dice claims to keep the mobile claim builder quick.
 
----
+## Architecture and hidden information
 
-## 📁 Project Structure
+Photon's room master is authoritative. Public snapshots contain players, phase, claims and public Poker Dice results. During Liar's Dice, the actual dice are **not** included in room properties or public snapshots. The master sends them only to the current actor using a targeted Photon event. They enter public state only when a challenge reveals the hand.
 
-```
-/
-├── index.html             # The main application file
-├── config.js              # (Local Only) Contains secret API keys
-├── config.example.js      # Example config file to be committed
-├── manifest.json          # PWA configuration
-├── sw.js                  # PWA service worker for caching
-├── .gitignore             # Specifies files for Git to ignore
-├── README.md              # This file
-├── /textures/             # Contains the 6 PNG files for dice faces
-├── /icons/                # Contains PWA icons (192x192, 512x512)
-└── /workshop/             # (Ignored) For work-in-progress graphics
-```
+This is appropriate for a friendly game, but the current Photon room master can technically inspect the authoritative hand in developer tools. Preventing even the room master from knowing it would require a substantially more complex commit/reveal protocol.
 
----
+If the room master changes during an unrevealed Liar's Dice round, the incomplete round is safely restarted with fresh concealed dice because the secret hand is intentionally not persisted publicly.
 
-## 🚀 Local Development
+## Migration from Multisynq
 
-Follow these steps to run the game on your local machine.
+The original game used a deterministic Multisynq model mirrored to every client. V2 preserves a single authoritative state machine but moves authority to Photon's room master:
 
-### 1. Clone the Repository
+1. Multisynq model subscriptions became validated Photon commands.
+2. Every command includes the sending actor and is checked against host/turn ownership.
+3. Public state is persisted as a Photon room property for late joins and master migration.
+4. Targeted Photon events provide the private hand required by Liar's Dice.
+5. A per-tab Photon user ID prevents the same-browser duplicate-user join error.
+6. Late joiners and eliminated players are explicit spectators.
 
-```bash
-git clone https://github.com/your-username/poker-dice.git
-cd poker-dice
+The original repository and commit history are retained.
+
+## Testing
+
+Run:
+
+```powershell
+npm test
 ```
 
-### 2. Create config.js
+Tests cover poker ranking and tie-breaks, claim ordering, reroll limits, hidden public state and challenge elimination.
 
-This file is required to connect to the Multisynq service. It is intentionally not committed to the repository. Copy `config.example.js` to a new file named `config.js` and add your credentials.
+## Deployment
 
-```javascript
-// config.js - DO NOT COMMIT THIS FILE!
-window.APP_CONFIG = {
-  API_KEY: "your-multisynq-api-key",
-  APP_ID: "com.yourdomain.pokerdice", // e.g., com.sarcastichedgehog.pokerdice
-  BASE_URL: "http://localhost:8000"
-};
-```
+The GitHub Action requires:
 
-### 3. Ensure Assets are in Place
+- `PHOTON_APP_ID`
+- `GH_PAGES_DEPLOY_TOKEN`
 
-Make sure you have the required images in the following folders:
-
-* `/textures/`: `face1.png` through `face6.png`
-* `/icons/`: `icon-192x192.png` and `icon-512x512.png`
-
-### 4. Start a Local Server
-
-Since the game uses ES Modules, you need to run it from a web server. The simplest way is to use Python's built-in server:
-
-```bash
-python -m http.server
-```
-
-Now, open your browser and navigate to `http://localhost:8000`.
-
----
-
-## 🔧 Deployment (GitHub Actions)
-
-To deploy the game to a live website, use GitHub Actions to securely inject your secrets into the `config.js` file at build time.
-
-**Required GitHub Secrets:**
-
-* `MULTISYNQ_API_KEY`
-* `MULTISYNQ_APP_ID`
-* `MULTISYNQ_BASE_URL` (e.g., `https://www.yourdomain.com/poker-dice`)
-
-**Deployment YAML Snippet:**
-
-Add the following step to your GitHub Actions workflow:
-
-```yaml
-- name: Create config.js for Poker Dice
-  working-directory: ./poker-dice # Adjust this path to your project folder
-  run: |
-    echo "Generating config.js from secrets..."
-    echo "window.APP_CONFIG = {" > config.js
-    echo "  API_KEY: \"${{ secrets.MULTISYNQ_API_KEY }}\"," >> config.js
-    echo "  APP_ID: \"${{ secrets.MULTISYNQ_APP_ID }}\"," >> config.js
-    echo "  BASE_URL: \"${{ secrets.MULTISYNQ_BASE_URL }}\"" >> config.js
-    echo "};" >> config.js
-```
-
----
-
-## 🔮 Future Ideas
-
-* **Liar's Dice Mode:** Implement the "Liar's Dice" game variant using the same 3D dice and networking foundation.
-* **Sound Effects:** Add sounds for dice rolls, holds, and winning.
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License.
+On a push to `main`, it creates the production `config.js` and replaces `/dice` in the `sarcastichedgehog.com` repository.
