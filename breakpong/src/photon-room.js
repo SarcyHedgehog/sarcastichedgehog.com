@@ -1,5 +1,5 @@
-import { GameModel } from "./game-model.js?v=20260813-3";
-import { SNAPSHOT_MS, TICK_MS } from "./constants.js?v=20260813-3";
+import { GameModel } from "./game-model.js?v=20260813-4";
+import { SNAPSHOT_MS, TICK_MS } from "./constants.js?v=20260813-4";
 
 const EVENT = Object.freeze({ HELLO: 1, INPUT: 2, SNAPSHOT: 3, REQUEST_STATE: 4, RESET: 5 });
 const STATE_PROPERTY = "bp_state";
@@ -19,7 +19,7 @@ export class PhotonRoom extends EventTarget {
     this.roomCode = normalizeRoom(roomCode); this.name = name.trim().slice(0, 20) || "Player";
     const Client = Photon.LoadBalancing.LoadBalancingClient;
     this.client = new Client(Photon.ConnectionProtocol.Wss, this.config.PHOTON_APP_ID, "breakpong-2");
-    this.client.setUserId(loadIdentity());
+    this.client.setUserId(createConnectionIdentity());
     this.client.setLogLevel(this.config.DEBUG ? Photon.LogLevel.DEBUG : Photon.LogLevel.WARN);
     this.client.onStateChange = (state) => {
       this.status(Client.StateToName?.(state) || String(state));
@@ -172,14 +172,7 @@ export class PhotonRoom extends EventTarget {
 
 function normalizeRoom(value) { return (value || "ARENA").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 12) || "ARENA"; }
 function randomSeed() { const values=new Uint32Array(1);if(globalThis.crypto?.getRandomValues)globalThis.crypto.getRandomValues(values);else values[0]=Math.floor(Math.random()*0xffffffff);return values[0]; }
-function loadIdentity() {
-  let id = localStorage.getItem("breakpong-id");
-  if (!id) {
-    id = globalThis.crypto?.randomUUID?.() || fallbackUuid();
-    localStorage.setItem("breakpong-id", id);
-  }
-  return id;
-}
+function createConnectionIdentity() { return globalThis.crypto?.randomUUID?.() || fallbackUuid(); }
 function fallbackUuid() {
   const bytes = new Uint8Array(16);
   if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);

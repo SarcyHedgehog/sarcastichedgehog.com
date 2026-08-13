@@ -5,12 +5,12 @@
   <title>BreakPong — Photon Arena</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260813-3"><script src="config.js"></script><script type="module" src="src/main.js?v=20260813-3"></script>
+  <link rel="stylesheet" href="styles.css?v=20260813-4"><link rel="stylesheet" href="spectator.css?v=20260813-4"><script src="config.js"></script><script type="module" src="src/main.js?v=20260813-4"></script>
 </head>
 <body>
   <main id="arena" aria-label="BreakPong arena"></main>
   <header class="hud"><div class="brand"><span>BREAK</span><strong>PONG</strong><small>PHOTON ARENA</small></div><div id="score" class="score">0 <i>:</i> 0</div><div class="connection"><span id="connection-dot"></span><span id="connection-status">Offline</span></div></header>
-  <section id="game-message" class="game-message">Choose an arena</section>
+  <section id="game-message" class="game-message">Choose an arena</section><div id="spectator-badge" class="spectator-badge" hidden>SPECTATING</div>
   <aside class="player-card left"><span>PLAYER 1</span><strong id="player-1">Waiting…</strong></aside><aside class="player-card right"><span>PLAYER 2</span><strong id="player-2">Waiting…</strong></aside>
   <button id="menu-button" class="icon-button" type="button" aria-label="Open arena menu">☰</button>
   <dialog id="lobby"><form id="join-form" method="dialog"><div class="dialog-brand">BREAK<span>PONG</span></div><p>Two paddles. Fifty breakable bricks. Two portals. One gloriously unfair wall.</p><label>Display name<input id="display-name" maxlength="20" autocomplete="nickname" required></label><label>Arena code<input id="room-code" maxlength="12" value="ARENA" pattern="[A-Za-z0-9-]+" required></label><button class="primary" type="submit">ENTER ARENA</button><p id="join-error" class="error" role="alert"></p></form></dialog>
