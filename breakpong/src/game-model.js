@@ -1,4 +1,4 @@
-import { BRICK, C, TICK_MS } from "./constants.js";
+import { BRICK, C, TICK_MS } from "./constants.js?v=20260813-3";
 
 export class PRNG {
   constructor(seed = 12345) { this.seed = seed | 0; }

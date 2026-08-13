@@ -1,5 +1,5 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js";
-import { BRICK, C, SNAPSHOT_MS } from "./constants.js";
+import { BRICK, C, SNAPSHOT_MS } from "./constants.js?v=20260813-3";
 
 export class ArenaView {
   constructor(host) {
@@ -64,7 +64,7 @@ export class ArenaView {
     const geometry=new THREE.BoxGeometry(data.width*.86,.22,data.depth*.88);const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: data.type === "black" ? .08 : .38, metalness: .62, roughness: .28 }));mesh.castShadow=mesh.receiveShadow=true;const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geometry),new THREE.LineBasicMaterial({color:0x111416,transparent:true,opacity:.7}));mesh.add(edges);this.scene.add(mesh);return mesh;
   }
 
-  update(snapshot) { const old=this.current;this.previous=old||snapshot;this.current=snapshot;this.receivedAt=performance.now();this.syncBricks(snapshot.bricks);const newMatch=snapshot.score[1]===0&&snapshot.score[2]===0,enteredCountdown=(!old||old.state!=="countdown")&&snapshot.state==="countdown";if(enteredCountdown&&newMatch)this.startIntro();else if(this.intro&&(!newMatch||["waiting","disconnected"].includes(snapshot.state)))this.resetCamera();else if(!old&&snapshot.state!=="countdown")this.resetCamera();if(old)this.detectCues(old,snapshot);this.matchPoint=Math.max(snapshot.score[1],snapshot.score[2])===9&&!snapshot.state.startsWith("won"); }
+  update(snapshot) { const old=this.current;this.previous=old||snapshot;this.current=snapshot;this.receivedAt=performance.now();this.syncBricks(snapshot.bricks);const newMatch=snapshot.score[1]===0&&snapshot.score[2]===0,openingCountdown=newMatch&&snapshot.state==="countdown",enteredCountdown=(!old||old.state!=="countdown")&&openingCountdown;if(enteredCountdown)this.startIntro();else if(!openingCountdown)this.resetCamera();if(old)this.detectCues(old,snapshot);this.matchPoint=Math.max(snapshot.score[1],snapshot.score[2])===9&&!snapshot.state.startsWith("won"); }
 
   startIntro(){clearTimeout(this.introTimer);const token=Symbol("intro");this.intro={started:performance.now(),duration:4800,token};this.introTimer=setTimeout(()=>{if(this.intro?.token===token)this.resetCamera()},5200);this.camera.position.set(0,.48,1.65);this.keyLight.intensity=.05;this.rimLight.intensity=0;for(const light of this.showLights)light.intensity=0}
 

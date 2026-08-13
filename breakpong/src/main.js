@@ -1,6 +1,6 @@
-import { ArenaView } from "./arena-view.js";
-import { PhotonRoom } from "./photon-room.js";
-import { AudioEngine } from "./audio-engine.js";
+import { ArenaView } from "./arena-view.js?v=20260813-3";
+import { PhotonRoom } from "./photon-room.js?v=20260813-3";
+import { AudioEngine } from "./audio-engine.js?v=20260813-3";
 const $=(id)=>document.getElementById(id);const ui={lobby:$("lobby"),form:$("join-form"),name:$("display-name"),code:$("room-code"),error:$("join-error"),status:$("connection-status"),score:$("score"),message:$("game-message"),p1:$("player-1"),p2:$("player-2"),panel:$("room-panel"),room:$("room-label"),role:$("role-label")};
 const audio=new AudioEngine();const view=new ArenaView($("arena"));view.onCue=(name)=>audio.cue(name);let room=null,presence=[];const params=new URLSearchParams(location.search);ui.code.value=params.get("room")||"ARENA";ui.name.value=localStorage.getItem("breakpong-name")||"";ui.lobby.showModal();
 ui.form.addEventListener("submit",async(event)=>{event.preventDefault();await audio.unlock();ui.error.textContent="";ui.form.querySelector("button").disabled=true;try{localStorage.setItem("breakpong-name",ui.name.value.trim());room=new PhotonRoom(window.APP_CONFIG||{});wireRoom(room);await room.connect({roomCode:ui.code.value,name:ui.name.value});history.replaceState(null,"",`${location.pathname}?room=${encodeURIComponent(room.roomCode)}`);ui.room.textContent=room.roomCode;ui.panel.hidden=true;ui.lobby.close()}catch(error){ui.error.textContent=error.message;room?.disconnect();room=null}finally{ui.form.querySelector("button").disabled=false}});
