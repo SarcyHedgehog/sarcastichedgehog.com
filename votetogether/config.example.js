@@ -1,7 +1,11 @@
-// config.example.js - Commit this file
-// Instructions: Copy this file to config.js and fill in your actual values.
+// Copy this file to config.js. config.js is deliberately ignored by Git.
 window.APP_CONFIG = {
-  API_KEY: "Your API Key from multisynq.io/code",
-  APP_ID: "com.domain.vote  (Reversed domain name and game name)",
-  BASE_URL: "https://www.yourdomain.com/vote",
+  // "local" works immediately across tabs on the same browser and origin.
+  // Change to "photon" after adding the Photon SDK and App ID below.
+  MODE: "local",
+  PHOTON_APP_ID: "",
+  PHOTON_REGION: "eu",
+  PHOTON_SDK_URL: "vendor/photon.min.js",
+  BASE_URL: "http://127.0.0.1:5500/",
+  DEBUG: false,
 };

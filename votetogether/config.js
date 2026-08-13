@@ -1,5 +1,8 @@
 window.APP_CONFIG = {
-  API_KEY: "2atXt6dTbNaKKO83iB4tsYDfmpusH0C6veTYXjy7Om",
-  APP_ID: "com.sarcastichedgehog.votetogether",
-  BASE_URL: "https://www.sarcastichedgehog.com/votetogether"
+  MODE: "photon",
+  PHOTON_APP_ID: "764e2fdf-4fe4-4394-a657-0d976b4dfabf",
+  PHOTON_REGION: "eu",
+  PHOTON_SDK_URL: "vendor/photon.min.js",
+  BASE_URL: "https://www.sarcastichedgehog.com/votetogether/",
+  DEBUG: false
 };

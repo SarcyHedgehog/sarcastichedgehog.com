@@ -1,165 +1,114 @@
 # VoteTogether
 
-A real-time voting and prediction game built with [Multisynq](https://multisynq.io). Players vote on polls and try to predict which option will be most popular, earning points for correct predictions.
+One poll. One vote. One immediate shared result.
 
-## 🎮 How It Works
+VoteTogether is a deliberately frictionless social polling game inspired by the Wii Everybody Votes Channel. A host asks one question, shares a room link, and everyone votes anonymously while predicting the most popular answer.
 
-1. **Vote**: Choose your preferred option from a poll
-2. **Predict**: Guess which option will get the most votes
-3. **Score**: Earn points for correctly predicting the majority choice
-4. **Compete**: Climb the leaderboard with your prediction accuracy
+This branch migrates the original Multisynq implementation to Photon Realtime while keeping the app as a framework-free static website.
 
-## 🚀 Setup
+## Current status
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd votetogether
-   ```
+- Complete responsive UI and game rules
+- Room-scoped username/password identity
+- Persistent host role
+- One active poll and one accepted vote per participant
+- Majority prediction scoring, leaderboard and recent history
+- Shareable room URLs
+- Local multi-tab transport for immediate development and testing
+- Photon Realtime adapter implemented against the JavaScript 4.4 API
+- Original implementation preserved in `legacy-multisynq.html`
 
-2. **Configure API credentials**
-   ```bash
-   cp config.example.js config.js
-   ```
-   Edit `config.js` and add your Multisynq API key and App ID:
-   ```javascript
-   window.APP_CONFIG = {
-       API_KEY: "your-multisynq-api-key",
-       APP_ID: "your-multisynq-app-id"
-   };
-   ```
+The local transport is fully usable now. Photon mode needs a Realtime App ID and the official JavaScript SDK download.
 
-3. **Serve the files**
-   - Use any web server (Live Server, Python's `http.server`, etc.)
-   - Or simply open `index.html` in a modern browser
+## Run locally
 
-## 🔐 Authentication System
+1. Open this folder in VS Code.
+2. Copy `config.example.js` to `config.js` if a local config does not already exist.
+3. Keep `MODE: "local"`.
+4. Start VS Code Live Server from `index.html`.
+5. Open the same URL in two tabs.
+6. Join the same room with different names and passwords.
 
-### Password-Protected Usernames per Session
+Local mode uses `BroadcastChannel` for live notifications and `localStorage` for canonical room state. It is a development transport, not a production backend.
 
-VoteTogether uses a unique authentication approach designed for persistent group sessions:
+## Enable Photon
 
-**How it works:**
-- Each room (session) maintains its own independent user registry
-- Users create a username + password combination that's tied to that specific room
-- The password is hashed using SHA-256 before storage
-- Once registered, that username/password combo is permanent for that room
+1. Create a free Photon account.
+2. Create an application of type **Realtime**.
+3. Download the official Photon JavaScript SDK 4.4.
+4. Copy `lib/photon.min.js` from the download into `vendor/photon.min.js`.
+5. Configure the ignored `config.js`:
 
-**Login Flow:**
-1. User enters: `username`, `password`, `room code`
-2. System checks if username exists in that room's registry
-3. **New user**: Username doesn't exist → Register and login
-4. **Existing user**: Username exists → Verify password hash → Login if correct
-5. **Wrong password**: Username exists but password doesn't match → Reject
-
-**Why this approach?**
-- **Persistent identity**: Users keep the same name across sessions
-- **Room isolation**: Same username can exist in different rooms with different passwords  
-- **No global accounts**: Each room is completely independent
-- **Simple security**: SHA-256 hashing protects passwords in storage
-
-### Host Role Persistence
-
-The host role is designed to survive disconnections and work for long-running sessions (like daily polls):
-
-**Host Assignment:**
-- First person to click "Become Host" in a room becomes the permanent host
-- Their username is stored in `model.hostUsername` (persistent)
-- Their current connection ID is stored in `model.hostViewId` (temporary)
-
-**Host Reconnection:**
-- When the host user rejoins the room, they automatically regain host privileges
-- System matches their username against `model.hostUsername`
-- Host controls immediately become available
-
-**Host Offline Handling:**
-- When host disconnects: `hostViewId` becomes `null`, but `hostUsername` remains set
-- Other users see "Host: [name] (offline)" status
-- Non-host users cannot claim the host role while a host is assigned
-- Only the original host can "Resume Host Role" when they return
-
-**Why persistent hosts?**
-- **Daily polls**: Host can set up questions and leave, returning later to close polls
-- **Consistent control**: Prevents host role from bouncing between users
-- **Clear ownership**: Everyone knows who the designated host is, even when offline
-
-## 🎯 Game Features
-
-### Voting Process
-1. Host creates a poll with question and multiple choice options
-2. Players first vote for their personal preference
-3. Players then predict which option will be most popular
-4. Host closes the poll to reveal results
-5. Players earn points for correct predictions
-
-### Scoring System
-- **Polls Voted**: Total number of polls participated in
-- **Guesses Correct**: Number of times correctly predicted the majority
-- **Accuracy**: Percentage of correct predictions (Guesses Correct / Polls Voted)
-- **Leaderboard**: Sorted by accuracy percentage
-
-### Session Management
-- **Room Codes**: Simple text codes (e.g., "drinks", "office", "family")
-- **Persistent Data**: All votes, questions, and user stats are preserved
-- **History**: View results from all previous polls in the session
-- **Real-time Updates**: All players see changes instantly via Multisynq sync
-
-## 🛠 Technical Architecture
-
-### Multisynq Integration
-- **Model**: `PollModel` - Manages questions, votes, users, and game state
-- **View**: `PollView` - Handles UI rendering and user interactions  
-- **Session**: Room-based multiplayer sessions with real-time synchronization
-
-### Key Design Patterns
-- **Single-object payloads**: All Multisynq `publish()` calls send one object parameter
-- **State synchronization**: Model publishes "state-updated" events to trigger re-renders
-- **Event-driven updates**: Views subscribe to model changes for real-time UI updates
-
-### Data Structure
 ```javascript
-// Model state
-{
-  questions: [
-    {
-      id: 1,
-      text: "What's your favorite drink?",
-      options: ["Coffee", "Tea", "Water", "Soda"],
-      votes: {
-        "username": { vote: 0, guess: 1 }
-      },
-      closed: false
-    }
-  ],
-  users: {
-    "username": {
-      passwordHash: "sha256hash...",
-      pollsVoted: 5,
-      guessesCorrect: 3
-    }
-  },
-  hostUsername: "admin",
-  hostViewId: "view-123",
-  currentQuestionIndex: 0
-}
+window.APP_CONFIG = {
+  MODE: "photon",
+  PHOTON_APP_ID: "your-realtime-app-id",
+  PHOTON_REGION: "eu",
+  PHOTON_SDK_URL: "vendor/photon.min.js",
+  BASE_URL: "http://127.0.0.1:5500/",
+  DEBUG: false,
+};
 ```
 
-## 🎨 UI Features
+6. Reload both browser tabs and join the same room.
 
-- **Responsive Design**: Works on mobile and desktop
-- **Real-time Updates**: Instant synchronization across all connected devices
-- **Visual Feedback**: Clear indication of voting steps and results
-- **Accessibility**: Semantic HTML and proper contrast ratios
-- **Progressive Web App**: Installable with offline manifest
+The App ID is a client identifier and will be visible in browser code. It is not a replacement for authentication.
 
-## 🔧 Development
+## Architecture
 
-Built with:
-- **Multisynq**: Real-time multiplayer synchronization
-- **Tailwind CSS**: Utility-first styling
-- **Vanilla JavaScript**: No framework dependencies
-- **SHA-256**: Password hashing for security
+```text
+src/app.js
+  presentation, interaction and room lifecycle
+        │
+        ▼
+src/transports/index.js
+  selects local or Photon transport
+        │
+        ├── local-transport.js
+        │     BroadcastChannel + localStorage
+        │
+        └── photon-transport.js
+              Photon rooms, events and room properties
+        │
+        ▼
+src/game-state.js
+  transport-independent rules and scoring
+```
 
-## 📝 License
+The Photon room's master client processes application commands and publishes canonical snapshots. The latest snapshot is also stored in a Photon room property so late joiners and a replacement master can recover it while the room exists.
+
+Photon room properties are not permanent database storage. Long-term persistence and hardened authentication are separate production milestones documented in `tutorial/photon_migration.md`.
+
+## Tests
+
+Run the transport-independent rules:
+
+```bash
+npm test
+```
+
+For browser testing, use two Live Server tabs and follow the behavioural baseline in `tutorial/photon_migration.md`.
+
+## Security status
+
+Local mode stores hashed room credentials in the browser for development. Photon development mode stores the same application state in a room property. This preserves the original behaviour but is not hardened authentication: a malicious client can inspect or manipulate browser-visible state.
+
+Before any public deployment:
+
+- configure Photon Custom Authentication;
+- reject anonymous Photon clients;
+- move credential verification and privileged command validation behind a trusted service;
+- decide which room data should persist and for how long.
+
+## Project history
+
+- `main`: original Multisynq application
+- `photon-migration`: Photon migration and local development transport
+- `legacy-multisynq.html`: final preserved Multisynq page inside this branch
+- `tutorial/`: implementation history and reusable patterns
+
+See [the migration journal](tutorial/photon_migration.md) and [the changelog](CHANGELOG.md).
+
+## License
 
 MIT
