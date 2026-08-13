@@ -1,4 +1,6 @@
 window.APP_CONFIG = {
-  API_KEY: "2atXt6dTbNaKKO83iB4tsYDfmpusH0C6veTYXjy7Om",
-  APP_ID: "com.sarcastichedgehog.mazetag"
+  PHOTON_APP_ID: "e009db03-c4c3-4f20-8ab6-061a9a40de88",
+  PHOTON_REGION: "eu",
+  PHOTON_SDK_URL: "vendor/photon.min.js",
+  DEBUG: false
 };
