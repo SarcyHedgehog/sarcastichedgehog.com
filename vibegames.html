@@ -2,111 +2,103 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sarcastic Hedgehog – Vibe Games</title>
   <link rel="stylesheet" href="styles.css" />
- 
 </head>
 <body>
   <div class="back-link">
     <a href="index.html">&larr; Back to Home</a>
   </div>
 
-  <div class="games-page">
-    <h1>Vibe-Coded Multiplayer Prototypes</h1>
+  <main class="games-page">
+    <h1>Vibe-Coded Multiplayer Games</h1>
     <p class="description">
-      These experimental, open-source apps were originally built with the Multisynq multiplayer engine. Following the closure of the Multisynq network, they are being migrated to <a href="https://www.photonengine.com/" target="_blank">Photon</a>. Games will return as their migrations are completed.
+      Originally created for the Multisynq multiplayer engine, this collection has now been restored and rebuilt on <a href="https://www.photonengine.com/" target="_blank" rel="noopener">Photon Realtime</a>. The original repositories retain the journey from first prototype, through Multisynq, to their new Photon editions.
     </p>
     <p class="migration-key">
       <span class="migration-swatch" aria-hidden="true"></span>
-      Games highlighted in cyan have completed their migration and are live on Photon.
+      The complete collection is live on Photon.
     </p>
     <p class="share-tip">
-      Existing builds may be unavailable during the migration. Once a game returns, start it and share its URL with a friend—or scan the QR code shown inside the game.
+      Pick a game, create or join a room, then share its URL with a friend—or use the invitation tools inside the game.
     </p>
 
     <div class="game-grid">
-      <!-- VoteTogether -->
-      <div class="game-card photon-live">
+      <article class="game-card photon-live">
         <span class="migration-badge">Photon &mdash; Live</span>
         <h2>VoteTogether</h2>
-        <p>Multiplayer voting and prediction tool. Vote on polls and guess what the majority will choose. Perfect for team sessions and daily polls.</p>
-        <p><strong>Features:</strong> Persistent host role, session-based rooms, scoring system, copy links &amp; QR codes.</p>
-        <p><strong>Migration:</strong> Restored on Photon Realtime while retaining its original repository history.</p>
+        <p>Create one instant poll and share it with anyone who wants to vote—an anonymous, multiplayer take on the classic Wii voting idea.</p>
+        <p><strong>Features:</strong> Persistent host, live results, predictions, scoring, share links and QR codes.</p>
         <div class="game-links">
           <a href="/votetogether/" target="_blank">Play</a>
           <a href="https://github.com/SarcyHedgehog/VoteTogether" target="_blank">View Repo</a>
           <a href="https://github.com/SarcyHedgehog/VoteTogether/tree/main/tutorial" target="_blank">Tutorials</a>
         </div>
-      </div>
+      </article>
 
-      <!-- MazeTag -->
-      <div class="game-card">
+      <article class="game-card photon-live">
         <img src="images/mazetag.png" alt="MazeTag">
+        <span class="migration-badge">Photon &mdash; Live</span>
         <h2>MazeTag</h2>
-        <p>Multiplayer maze escape with traps, dashes, and close calls. Great for quick sessions with friends.</p>
-        <p><strong>Controls:</strong> Use Left and Right Arrow keys to turn. Avoid the hunter!</p>
+        <p>Fast multiplayer tag through selectable mazes, complete with fading player trails and maps created from spreadsheets.</p>
+        <p><strong>Controls:</strong> Use the arrow keys or on-screen controls to turn, dash and evade the hunter.</p>
         <div class="game-links">
-          <a href="/mazetag/index.html" target="_blank">Play</a>
+          <a href="/mazetag/" target="_blank">Play</a>
           <a href="https://github.com/SarcyHedgehog/mazetag" target="_blank">View Repo</a>
         </div>
-      </div>
+      </article>
 
-      <!-- BreakPong -->
-      <div class="game-card photon-live">
+      <article class="game-card photon-live">
         <img src="images/pongout.png" alt="BreakPong 3D">
         <span class="migration-badge">Photon &mdash; Live</span>
         <h2>BreakPong 3D</h2>
-        <p>Pong meets Breakout in 3D — bricks, shrinking paddles, portals, and frantic back-and-forth multiplayer.</p>
-        <p><strong>Controls:</strong> Arrow keys to move your paddle. Score by getting the ball past your opponent.</p>
+        <p>Pong meets Breakout in a Portal-inspired 3D arena—with breakable walls, shrinking paddles and paired portals.</p>
+        <p><strong>Controls:</strong> Move your paddle and get the ball past your opponent. Spectators can watch live.</p>
         <div class="game-links">
           <a href="/breakpong/" target="_blank">Play</a>
           <a href="https://github.com/SarcyHedgehog/breakpong" target="_blank">View Repo</a>
         </div>
-      </div>
+      </article>
 
-      <!-- DemoDerby -->
-      <div class="game-card photon-live">
+      <article class="game-card photon-live">
         <img src="images/demoderby.png" alt="DemoDerby">
         <span class="migration-badge">Photon &mdash; Live</span>
         <h2>DemoDerby</h2>
-        <p>Multiplayer demolition derby prototype. Smash opponents, dodge chaos, and test your driving instincts.</p>
-        <p><strong>Controls:</strong> Arrow keys to drive. Hit others from behind to score. Don't get wrecked!</p>
+        <p>A multiplayer demolition derby: ram your opponents, manage the damage and try to be the last car moving.</p>
+        <p><strong>Controls:</strong> Drive forward or back and steer. Late arrivals can follow the action as spectators.</p>
         <div class="game-links">
           <a href="/demoderby/" target="_blank">Play</a>
           <a href="https://github.com/SarcyHedgehog/DemoDerby" target="_blank">View Repo</a>
         </div>
-      </div>
-    
-    <!-- Buzzer -->
-    <div class="game-card photon-live">
-      <img src="images/buzzer.png" alt="Buzzer">
-      <span class="migration-badge">Photon &mdash; Live</span>
-      <h2>Buzzer</h2>
-      <p>A multiplayer true/false quiz scorer. Join a session, hit the buzzer, and race to answer. Installable as a Progressive Web App.</p>
-      <p><strong>Controls:</strong> Click or tap the tick or cross to answer. The host leads the quiz.</p>
-      <div class="game-links">
-        <a href="/buzzer/" target="_blank">Play</a>
-        <a href="https://github.com/SarcyHedgehog/buzzer2" target="_blank">View Repo</a>
-  </div>
-</div>
+      </article>
 
-<!-- Poker Dice -->
-<div class="game-card">
-  <img src="images/pokerdice.png" alt="Poker Dice">
-  <h2>Poker Dice</h2>
-  <p>A multiplayer Poker Dice game. Installable as a Progressive Web App.</p>
-  <p><strong>Controls: </strong>3 rolls to get your best hand. </p>
-  <div class="game-links">
-    <a href="/dice/" target="_blank">Play</a>
-    <a href="https://github.com/SarcyHedgehog/pokerdice" target="_blank">View Repo</a>
-  </div>
-</div>
-</div>
-</div>
+      <article class="game-card photon-live">
+        <img src="images/buzzer.png" alt="Buzzer">
+        <span class="migration-badge">Photon &mdash; Live</span>
+        <h2>Buzzer</h2>
+        <p>A pocket multiplayer buzzer for instant, impromptu quizzes. Install it on a phone as a Progressive Web App.</p>
+        <p><strong>Controls:</strong> Tap the tick or cross to answer while the host runs the quiz and keeps score.</p>
+        <div class="game-links">
+          <a href="/buzzer/" target="_blank">Play</a>
+          <a href="https://github.com/SarcyHedgehog/buzzer2" target="_blank">View Repo</a>
+        </div>
+      </article>
 
+      <article class="game-card photon-live">
+        <img src="images/pokerdice.png" alt="Poker Dice">
+        <span class="migration-badge">Photon &mdash; Live</span>
+        <h2>Poker Dice</h2>
+        <p>Two games at one table: classic Poker Dice and a bluffing, pass-the-cup Liar’s Dice variant.</p>
+        <p><strong>Controls:</strong> Roll, hold and build the best hand—or inherit the hidden dice, raise the claim and decide when to call the bluff.</p>
+        <div class="game-links">
+          <a href="/dice/" target="_blank">Play</a>
+          <a href="https://github.com/SarcyHedgehog/pokerdice" target="_blank">View Repo</a>
+        </div>
+      </article>
+    </div>
 
-    <p class="powered-by">Photon migrations are in progress.</p>
-  </div>
+    <p class="powered-by">Six experiments. Six Photon restorations. All live.</p>
+  </main>
 </body>
 </html>
