@@ -322,13 +322,36 @@ footer a:hover {
       text-transform: uppercase;
     }
 
-    .game-card img {
+    .game-shot {
+      position: relative;
+      z-index: 1;
+      width: calc(100% + 40px);
+      aspect-ratio: 16 / 9;
+      margin: -20px -20px 16px;
+      overflow: hidden;
+      border-bottom: 1px solid rgba(133, 241, 250, 0.28);
+      background: #050b13;
+    }
+
+    .game-shot::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      box-shadow: inset 0 -24px 28px rgba(4, 16, 21, 0.38);
+    }
+
+    .game-shot img {
       width: 100%;
-      height: auto;
-      max-height: 180px;
+      height: 100%;
+      display: block;
       object-fit: cover;
-      border-radius: 6px;
-      margin-bottom: 15px;
+      transition: transform 0.45s ease, filter 0.45s ease;
+    }
+
+    .game-card:hover .game-shot img {
+      transform: scale(1.035);
+      filter: saturate(1.08) brightness(1.04);
     }
 
     .game-card h2 {
