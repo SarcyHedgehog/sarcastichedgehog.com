@@ -1,0 +1,10 @@
+{
+  "name": "Hello Copter",
+  "short_name": "Hello Copter",
+  "start_url": "./",
+  "display": "fullscreen",
+  "background_color": "#102a38",
+  "theme_color": "#84d8e8",
+  "orientation": "landscape",
+  "icons": [{"src":"assets/images/icon.png","sizes":"72x72","type":"image/png"}]
+}

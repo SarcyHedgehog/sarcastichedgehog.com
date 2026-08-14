@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#84d8e8">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Hello Copter — Flight Test</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app">
+    <canvas id="game" aria-label="Hello Copter game"></canvas>
+
+    <section id="lobby" class="panel-wrap">
+      <div class="panel lobby-card">
+        <div class="eyebrow">SARCASTIC HEDGEHOG PRESENTS</div>
+        <h1>HELLO <span>COPTER</span></h1>
+        <p class="tagline">Rescue the flock. Dodge the strange. Keep flying.</p>
+        <label>CALLSIGN<input id="name" maxlength="16" value="Marmite One" autocomplete="nickname"></label>
+        <div style="margin:2px 0 9px;color:#b6c8d0;font-size:11px;font-weight:700;letter-spacing:.18em">CHOOSE FLIGHT MODE</div>
+        <div class="flight-modes" role="group" aria-label="Flight mode">
+          <button type="button" data-mode="solo" class="selected"><b>SOLO FLIGHT</b><small>The restored arcade run</small></button>
+          <button type="button" data-mode="shared"><b>SHARED SKIES</b><small>Meet other pilots in the loop</small></button>
+        </div>
+        <label id="room-field" class="hidden">AIRSPACE CODE<input id="room" maxlength="12" value="FLOCK" autocapitalize="characters"></label>
+        <p id="lobby-error" class="lobby-error hidden"></p>
+        <button id="launch" class="primary">LAUNCH</button>
+        <button id="how" class="ghost">HOW TO FLY</button>
+        <p class="future-note">Flight Test 03 · original hazards restored · Shared Skies preview</p>
+      </div>
+    </section>
+
+    <section id="help" class="panel-wrap hidden">
+      <div class="panel help-card">
+        <div class="eyebrow">FLIGHT MANUAL</div>
+        <h2>One button. Two directions.</h2>
+        <div class="manual-grid">
+          <div><b>HOLD</b><span>Space, mouse, or touch to climb.</span></div>
+          <div><b>STEER</b><span>A/D or ←/→ to turn through the looping world.</span></div>
+          <div><b>RESCUE</b><span>Collect lost birds to raise your score multiplier.</span></div>
+          <div><b>SURVIVE</b><span>Collect repairs, shields and slowdown power-ups.</span></div>
+        </div>
+        <button id="close-help" class="primary">GOT IT</button>
+      </div>
+    </section>
+
+    <header id="hud" class="hidden">
+      <div class="brand">HELLO <span>COPTER</span></div>
+      <div class="readouts">
+        <div><small>DISTANCE</small><strong id="distance">0000</strong></div>
+        <div><small>RESCUED</small><strong id="rescued">0</strong></div>
+        <div><small>MULTIPLIER</small><strong id="multiplier">1×</strong></div>
+        <div><small>SCORE</small><strong id="score">000000</strong></div>
+      </div>
+      <button id="pause" aria-label="Pause">Ⅱ</button>
+    </header>
+
+    <aside id="status" class="hidden">
+      <div id="lives" class="lives"></div>
+      <div id="shield-meter" class="shield-meter"><span></span><b>SHIELD</b></div>
+      <div id="direction" class="direction">FLYING EAST</div>
+      <div id="network-status" class="network-status hidden">SHARED SKIES · 1 PILOT</div>
+    </aside>
+
+    <div id="message" class="message hidden"></div>
+
+    <section id="pause-panel" class="panel-wrap hidden">
+      <div class="panel compact">
+        <div class="eyebrow">FLIGHT SUSPENDED</div><h2>Paused</h2>
+        <button id="resume" class="primary">RESUME</button>
+        <button id="quit" class="ghost">RETURN TO LOBBY</button>
+      </div>
+    </section>
+
+    <section id="results" class="panel-wrap hidden">
+      <div class="panel result-card">
+        <div class="eyebrow">FLIGHT REPORT</div><h2 id="result-title">A noble attempt.</h2>
+        <div class="result-grid">
+          <div><small>DISTANCE</small><strong id="result-distance">0</strong></div>
+          <div><small>SCORE</small><strong id="result-score">0</strong></div>
+          <div><small>RESCUED</small><strong id="result-rescued">0</strong></div>
+        </div>
+        <button id="again" class="primary">FLY AGAIN</button>
+        <button id="result-lobby" class="ghost">LOBBY</button>
+      </div>
+    </section>
+
+    <div id="touch-controls" class="touch-controls hidden">
+      <button data-control="left" aria-label="Fly left">←</button>
+      <button data-control="right" aria-label="Fly right">→</button>
+      <button data-control="lift" class="lift" aria-label="Lift">LIFT</button>
+    </div>
+  </main>
+  <script>
+    if (location.protocol === 'file:') addEventListener('DOMContentLoaded', () => {
+      const warning = document.querySelector('#lobby-error');
+      warning.textContent = 'Hello Copter cannot run directly from a file:/// address. Open this folder with VS Code Live Server, then use the http:// address it provides.';
+      warning.classList.remove('hidden');
+      document.querySelectorAll('button').forEach(button => button.disabled = true);
+    });
+  </script>
+  <script src="config.js"></script>
+  <script type="module" src="src/game.js"></script>
+</body>
+</html>
