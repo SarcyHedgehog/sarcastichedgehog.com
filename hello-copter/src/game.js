@@ -336,18 +336,19 @@ function drawPlayer(point, entity, time) {
   ctx.scale(entity.facing, 1);
   ctx.rotate(entity.pitch * entity.facing);
   if (entity.invulnerable > 0 && Math.floor(time * 10) % 2) ctx.globalAlpha = .35;
-  if (entity.shield > 0) {
-    const frame = Math.floor(time * 10) % 4;
-    ctx.save();
-    ctx.globalAlpha = entity.shield < 3 && Math.floor(time * 9) % 2 ? .35 : .88;
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = '#36e9ff';
-    drawSheet(images.chopperShield, frame, 2, 128, 128, -68, -68, 136, 136);
-    ctx.restore();
-  }
   if (!drawSheet(images.chopper, Math.floor(time * 9) % 8, 8, 128, 128, -64, -64, 128, 128)) {
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.ellipse(0, 0, 34, 18, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  if (entity.shield > 0 && ready(images.chopperShield)) {
+    ctx.save();
+    // ChopperShield.png is one nose-mounted shield, not a 2x2 animation
+    // sheet. The legacy game flashed the whole shield only as it expired.
+    ctx.globalAlpha = entity.shield < 3 && Math.floor(time * 9) % 2 ? .35 : 1;
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = '#36e9ff';
+    ctx.drawImage(images.chopperShield, -64, -64, 128, 128);
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -376,7 +377,13 @@ function drawPowerup(point, entity, time) {
 function drawEnemy(point, entity, time) {
   ctx.save();
   ctx.translate(point.x, point.y);
-  const facing = entity.vx > 0 ? 1 : -1;
+  // The recovered bird and witch artwork is painted facing left. Bomb Fish
+  // faces right. Flip relative to each sheet's native direction so every
+  // enemy looks where it is actually travelling.
+  const nativeFacesRight = entity.kind === 'bombFish';
+  const facing = entity.kind === 'monkeyMouth'
+    ? 1
+    : ((entity.vx > 0) === nativeFacesRight ? 1 : -1);
   ctx.scale(facing, entity.side === 'ceiling' ? -1 : 1);
 
   if (entity.kind === 'businessBird') {

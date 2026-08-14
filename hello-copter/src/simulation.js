@@ -15,6 +15,7 @@ export class Simulation {
     this.rescued = 0;
     this.multiplier = 1;
     this.spawnBudget = 1;
+    this.nextWaveId = 1;
     this.slowdown = 0;
     this.events = [];
   }
@@ -31,6 +32,7 @@ export class Simulation {
     });
     this.state = 'playing';
     this.spawnBudget = .4;
+    this.nextWaveId = 1;
     for (let i = 0; i < 34; i++) this.spawnScenery(i * 700 + this.random() * 400);
     this.events.push({type: 'message', text: 'CLEAR FOR TAKE-OFF', mood: 'good'});
   }
@@ -65,6 +67,33 @@ export class Simulation {
     });
   }
 
+  spawnEnemyWave(x, direction) {
+    const kinds = ['businessBird', 'businessBird', 'witchPig', 'bombFish'];
+    const kind = kinds[(this.random() * kinds.length) | 0];
+    const waveId = this.nextWaveId++;
+    const count = 3;
+    const speed = 92 + this.random() * 38;
+    const baseY = 255 + this.random() * 330;
+    const amplitude = 72 + this.random() * 38;
+    const frequency = 1.35 + this.random() * .8;
+    const phase = this.random() * Math.PI * 2;
+
+    for (let index = 0; index < count; index++) {
+      // Put successive members farther ahead and slightly farther around the
+      // same sine curve. They arrive as a readable procession instead of
+      // converging on the player and forming an unavoidable clump.
+      const memberPhase = phase + index * .72;
+      const memberX = wrap(x + direction * index * 165);
+      this.add({
+        type: 'enemy', kind, waveId, waveIndex: index,
+        x: memberX, y: baseY + Math.sin(memberPhase) * amplitude,
+        vx: -direction * speed, vy: 0,
+        radius: kind === 'bombFish' ? 29 : 31,
+        phase: memberPhase, baseY, amplitude, frequency,
+      });
+    }
+  }
+
   spawnAhead() {
     const p = this.player;
     const direction = p.facing || 1;
@@ -81,15 +110,7 @@ export class Simulation {
     } else if (roll < .38 && this.distance > 90) {
       this.spawnMonkeyMouth(x, direction);
     } else {
-      const kinds = ['businessBird', 'businessBird', 'witchPig', 'bombFish'];
-      const kind = kinds[(this.random() * kinds.length) | 0];
-      this.add({
-        type: 'enemy', kind, x, y: 150 + this.random() * 560,
-        vx: -direction * (65 + this.random() * 65), vy: 0,
-        radius: kind === 'bombFish' ? 29 : 31,
-        phase: this.random() * 6.28, baseY: 160 + this.random() * 520,
-        amplitude: 45 + this.random() * 85, frequency: .9 + this.random() * 1.4,
-      });
+      this.spawnEnemyWave(x, direction);
     }
   }
 
@@ -127,7 +148,7 @@ export class Simulation {
     this.spawnBudget -= dt * worldSpeed * (1 + Math.min(1.7, this.distance / 900));
     if (this.spawnBudget <= 0) {
       this.spawnAhead();
-      this.spawnBudget = .55 + this.random() * 1.05;
+      this.spawnBudget = .9 + this.random() * 1.25;
     }
 
     for (const e of this.entities) {
@@ -161,18 +182,9 @@ export class Simulation {
   }
 
   updateEnemy(e, p, dt, speed) {
-    if (e.kind === 'businessBird') {
+    if (e.kind === 'businessBird' || e.kind === 'witchPig' || e.kind === 'bombFish') {
       e.x = wrap(e.x + e.vx * dt * speed);
       e.y = e.baseY + Math.sin(e.age * e.frequency + e.phase) * e.amplitude;
-    } else if (e.kind === 'witchPig') {
-      const dx = wrappedDelta(e.x, p.x), dy = p.y - e.y, length = Math.hypot(dx, dy) || 1;
-      e.vx += (dx / length * 150 - e.vx) * dt * 1.25 * speed;
-      e.vy += (dy / length * 150 - e.vy) * dt * 1.25 * speed;
-      e.x = wrap(e.x + e.vx * dt * speed);
-      e.y = clamp(e.y + e.vy * dt * speed, 90, WORLD_HEIGHT - 90);
-    } else if (e.kind === 'bombFish') {
-      e.x = wrap(e.x + e.vx * dt * .32 * speed);
-      e.y = e.baseY + Math.sin(e.age * 1.6 + e.phase) * 20;
     } else if (e.kind === 'monkeyMouth') {
       e.stateTime += dt;
       const direction = e.side === 'ground' ? 1 : -1;
