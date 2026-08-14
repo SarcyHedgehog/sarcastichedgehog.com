@@ -43,13 +43,15 @@ audio.music.volume = .22;
 for (const name of ['impact', 'rescue', 'shield', 'repair', 'slowdown']) audio[name].volume = name === 'impact' ? .65 : .55;
 
 const ui = {
-  lobby: $('#lobby'), help: $('#help'), hud: $('#hud'), status: $('#status'),
+  lobby: $('#lobby'), help: $('#help'), credits: $('#credits'), setup: $('#flight-setup'), hud: $('#hud'), status: $('#status'),
   pausePanel: $('#pause-panel'), results: $('#results'), touch: $('#touch-controls'),
   message: $('#message'),
 };
 const input = {lift: false, left: false, right: false};
 let running = false, paused = false, previous = performance.now(), accumulator = 0, messageTimer = 0;
 let flightMode = 'solo', skies = null, pilotCount = 1;
+let musicEnabled = localStorage.getItem('hello-copter-music') !== 'off';
+let soundEnabled = localStorage.getItem('hello-copter-sound') !== 'off';
 const camera = {x: 0, y: WORLD_HEIGHT / 2};
 
 function resize() {
@@ -82,8 +84,20 @@ document.querySelectorAll('[data-control]').forEach(button => {
   button.addEventListener('pointercancel', () => setControl(control, false));
 });
 
-$('#how').onclick = () => { ui.lobby.classList.add('hidden'); ui.help.classList.remove('hidden'); };
+$('#open-flight').onclick = () => ui.setup.classList.remove('hidden');
+$('#close-setup').onclick = () => ui.setup.classList.add('hidden');
+$('#how').onclick = () => { ui.setup.classList.add('hidden'); ui.lobby.classList.add('hidden'); ui.help.classList.remove('hidden'); };
 $('#close-help').onclick = () => { ui.help.classList.add('hidden'); ui.lobby.classList.remove('hidden'); };
+$('#show-credits').onclick = () => { ui.setup.classList.add('hidden'); ui.lobby.classList.add('hidden'); ui.credits.classList.remove('hidden'); };
+$('#close-credits').onclick = () => { ui.credits.classList.add('hidden'); ui.lobby.classList.remove('hidden'); };
+$('#sound-toggle').onclick = () => { soundEnabled = !soundEnabled; localStorage.setItem('hello-copter-sound', soundEnabled ? 'on' : 'off'); updateMenuAudio(); };
+$('#music-toggle').onclick = () => {
+  musicEnabled = !musicEnabled;
+  localStorage.setItem('hello-copter-music', musicEnabled ? 'on' : 'off');
+  if (!musicEnabled) audio.music.pause();
+  else if (running && !paused) audio.music.play().catch(() => {});
+  updateMenuAudio();
+};
 $('#launch').onclick = startGame;
 $('#again').onclick = startGame;
 $('#pause').onclick = togglePause;
@@ -96,6 +110,23 @@ document.querySelectorAll('[data-mode]').forEach(button => button.onclick = () =
   $('#room-field').classList.toggle('hidden', flightMode !== 'shared');
   $('#lobby-error').classList.add('hidden');
 });
+
+function updateMenuAudio() {
+  $('#sound-toggle img').src = `assets/images/menu/sound-${soundEnabled ? 'on' : 'off'}.png`;
+  $('#music-toggle img').src = `assets/images/menu/music-${musicEnabled ? 'on' : 'off'}.png`;
+  $('#sound-toggle').setAttribute('aria-pressed', soundEnabled);
+  $('#music-toggle').setAttribute('aria-pressed', musicEnabled);
+}
+
+function updateBestScore(score = 0) {
+  const previousBest = Number(localStorage.getItem('hello-copter-best') || 0);
+  const best = Math.max(previousBest, Math.floor(score));
+  if (best !== previousBest) localStorage.setItem('hello-copter-best', best);
+  $('#menu-best').textContent = String(best).padStart(6, '0');
+}
+
+updateMenuAudio();
+updateBestScore();
 
 async function startGame() {
   const launch = $('#launch');
@@ -112,9 +143,9 @@ async function startGame() {
     } catch (problem) {
       skies?.disconnect(); skies = null;
       error.textContent = problem.message; error.classList.remove('hidden');
-      launch.disabled = false; launch.textContent = 'LAUNCH'; return;
+      launch.disabled = false; launch.textContent = 'FLY!'; return;
     }
-    launch.disabled = false; launch.textContent = 'LAUNCH';
+    launch.disabled = false; launch.textContent = 'FLY!';
   }
   sim.start($('#name').value.trim() || 'Pilot');
   running = true;
@@ -130,7 +161,7 @@ async function startGame() {
   previous = performance.now();
   accumulator = 0;
   audio.music.currentTime = 0;
-  audio.music.play().catch(() => {});
+  if (musicEnabled) audio.music.play().catch(() => {});
 }
 
 function toLobby() {
@@ -143,6 +174,7 @@ function toLobby() {
   ui.hud.classList.add('hidden');
   ui.status.classList.add('hidden');
   ui.touch.classList.add('hidden');
+  ui.setup.classList.add('hidden');
   ui.lobby.classList.remove('hidden');
 }
 
@@ -162,6 +194,7 @@ function showMessage(text, mood, sound) {
 }
 
 function playSound(name) {
+  if (!soundEnabled) return;
   const source = audio[name];
   if (!source) return;
   const sound = source.cloneNode();
@@ -217,6 +250,7 @@ function endGame() {
   $('#result-distance').textContent = Math.floor(sim.distance);
   $('#result-score').textContent = Math.floor(sim.score);
   $('#result-rescued').textContent = sim.rescued;
+  updateBestScore(sim.score);
   $('#result-title').textContent = sim.rescued ? `${sim.rescued} safely rescued.` : 'The flock awaits.';
   setTimeout(() => ui.results.classList.remove('hidden'), 650);
 }

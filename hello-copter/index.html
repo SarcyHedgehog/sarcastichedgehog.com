@@ -7,41 +7,61 @@
   <link rel="manifest" href="manifest.webmanifest">
   <title>Hello Copter — Flight Test</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="menu.css?v=2">
 </head>
 <body>
   <main id="app">
     <canvas id="game" aria-label="Hello Copter game"></canvas>
 
-    <section id="lobby" class="panel-wrap">
-      <div class="panel lobby-card">
-        <div class="eyebrow">SARCASTIC HEDGEHOG PRESENTS</div>
-        <h1>HELLO <span>COPTER</span></h1>
-        <p class="tagline">Rescue the flock. Dodge the strange. Keep flying.</p>
-        <label>CALLSIGN<input id="name" maxlength="16" value="Marmite One" autocomplete="nickname"></label>
-        <div style="margin:2px 0 9px;color:#b6c8d0;font-size:11px;font-weight:700;letter-spacing:.18em">CHOOSE FLIGHT MODE</div>
-        <div class="flight-modes" role="group" aria-label="Flight mode">
-          <button type="button" data-mode="solo" class="selected"><b>SOLO FLIGHT</b><small>The restored arcade run</small></button>
-          <button type="button" data-mode="shared"><b>SHARED SKIES</b><small>Meet other pilots in the loop</small></button>
+    <section id="lobby" class="menu-screen">
+      <div class="menu-stage">
+        <img class="menu-logo" src="assets/images/menu/logo.png" alt="Hello Copter">
+        <div class="menu-bird bird-left" aria-hidden="true"></div>
+        <div class="menu-bird bird-right" aria-hidden="true"></div>
+
+        <button id="open-flight" class="picture-button menu-start" aria-label="Start"><img src="assets/images/menu/start.png" alt=""></button>
+        <button id="how" class="picture-button menu-help" aria-label="Help"><img src="assets/images/menu/help.png" alt=""></button>
+        <button id="show-credits" class="picture-button menu-credits" aria-label="Credits"><img src="assets/images/menu/credits.png" alt=""></button>
+
+        <div class="menu-utility" aria-label="Audio controls">
+          <button id="sound-toggle" class="picture-button mini-button" aria-label="Toggle sound effects" aria-pressed="true"><img src="assets/images/menu/sound-on.png" alt=""></button>
+          <button id="music-toggle" class="picture-button mini-button" aria-label="Toggle music" aria-pressed="true"><img src="assets/images/menu/music-on.png" alt=""></button>
         </div>
-        <label id="room-field" class="hidden">AIRSPACE CODE<input id="room" maxlength="12" value="FLOCK" autocapitalize="characters"></label>
-        <p id="lobby-error" class="lobby-error hidden"></p>
-        <button id="launch" class="primary">LAUNCH</button>
-        <button id="how" class="ghost">HOW TO FLY</button>
-        <p class="future-note">Flight Test 03 · original hazards restored · Shared Skies preview</p>
+        <div class="best-score"><small>BEST FLIGHT</small><strong id="menu-best">000000</strong></div>
+
+        <div class="menu-copter" aria-hidden="true"></div>
+        <img class="menu-heliport" src="assets/images/menu/heliport.png" alt="" aria-hidden="true">
+        <img class="menu-copyright" src="assets/images/menu/copyright.png" alt="©2012 Sarcastic Hedgehog Ltd">
+      </div>
+
+      <div id="flight-setup" class="menu-modal hidden">
+        <div class="setup-card">
+          <button id="close-setup" class="round-back" aria-label="Back to main menu">×</button>
+          <h2>Ready to fly?</h2>
+          <p>Choose a callsign and your stretch of sky.</p>
+          <label>CALLSIGN<input id="name" maxlength="16" value="Marmite One" autocomplete="nickname"></label>
+          <div class="flight-modes" role="group" aria-label="Flight mode">
+            <button type="button" data-mode="solo" class="selected"><b>SOLO FLIGHT</b><small>The restored arcade run</small></button>
+            <button type="button" data-mode="shared"><b>SHARED SKIES</b><small>Meet other pilots in the loop</small></button>
+          </div>
+          <label id="room-field" class="hidden">AIRSPACE CODE<input id="room" maxlength="12" value="FLOCK" autocapitalize="characters"></label>
+          <p id="lobby-error" class="lobby-error hidden"></p>
+          <button id="launch" class="launch-bubble">FLY!</button>
+        </div>
       </div>
     </section>
 
-    <section id="help" class="panel-wrap hidden">
-      <div class="panel help-card">
-        <div class="eyebrow">FLIGHT MANUAL</div>
-        <h2>One button. Two directions.</h2>
-        <div class="manual-grid">
-          <div><b>HOLD</b><span>Space, mouse, or touch to climb.</span></div>
-          <div><b>STEER</b><span>A/D or ←/→ to turn through the looping world.</span></div>
-          <div><b>RESCUE</b><span>Collect lost birds to raise your score multiplier.</span></div>
-          <div><b>SURVIVE</b><span>Collect repairs, shields and slowdown power-ups.</span></div>
-        </div>
-        <button id="close-help" class="primary">GOT IT</button>
+    <section id="help" class="menu-screen menu-overlay hidden">
+      <div class="art-panel">
+        <img src="assets/images/menu/help-panel.png" alt="Fly by holding space, mouse or touch. Rescue birds and dodge obstacles.">
+        <button id="close-help" class="art-back" aria-label="Back to main menu">BACK</button>
+      </div>
+    </section>
+
+    <section id="credits" class="menu-screen menu-overlay hidden">
+      <div class="art-panel">
+        <img src="assets/images/menu/credits-panel.png" alt="Original Hello Copter credits">
+        <button id="close-credits" class="art-back" aria-label="Back to main menu">BACK</button>
       </div>
     </section>
 
@@ -101,6 +121,6 @@
     });
   </script>
   <script src="config.js"></script>
-  <script type="module" src="src/game.js"></script>
+  <script type="module" src="src/game.js?v=menu1"></script>
 </body>
 </html>
