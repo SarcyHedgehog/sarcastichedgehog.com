@@ -34,7 +34,7 @@
           <p>Choose a trail, compare your progress and meet your group.</p>
         </div>
         <div class="lobby-head-actions">
-          <span class="local-pill">Local foundation</span>
+          <span id="service-status" class="local-pill">Connecting…</span>
           <button id="edit-player" class="quiet-button" type="button">Edit player</button>
         </div>
       </header>
@@ -53,7 +53,7 @@
           <span class="eyebrow">YOUR GROUP</span>
           <div id="group-empty">
             <h3 id="group-title">No group yet</h3>
-            <p>Groups will provide a private leaderboard for friends. Set yours up now; online synchronisation comes in the backend pass.</p>
+            <p>Create a private leaderboard for friends, or join one with an invitation code.</p>
             <div class="group-actions">
               <button id="join-group" class="primary-button" type="button">Join group</button>
               <button id="create-group" class="quiet-button" type="button">Create group</button>
@@ -62,7 +62,7 @@
           </div>
           <div id="group-member" class="hidden">
             <div class="group-identity"><span aria-hidden="true">🦔</span><div><h3 id="group-name">Group name</h3><small id="group-code">Invite code</small></div></div>
-            <p class="group-status">Membership is currently saved on this device. Your scores are ready to sync when the shared service is connected.</p>
+            <p id="group-status" class="group-status">Membership and scores are shared with this group.</p>
             <button id="leave-group" class="danger-button" type="button">Leave group</button>
           </div>
         </aside>
@@ -76,7 +76,7 @@
             <article><header><span>🐇</span><div><strong>The Hare</strong><small>Lowest completed total</small></div></header><ol id="hare-board"></ol></article>
             <article><header><span>🐢</span><div><strong>The Tortoise</strong><small>Longest completed total</small></div></header><ol id="tortoise-board"></ol></article>
           </div>
-          <p class="service-note"><span aria-hidden="true">↻</span> Shared friends’ scores will appear here once the persistent leaderboard service is connected.</p>
+          <p id="service-note" class="service-note"><span aria-hidden="true">↻</span> Connecting to the shared score service…</p>
         </section>
       </div>
     </section>
@@ -167,6 +167,7 @@
     <dialog id="leave-dialog" class="layout-dialog leave-dialog">
       <div class="dialog-head"><div><span class="eyebrow">LEAVE GROUP</span><h2>Are you sure?</h2></div><button id="close-leave" class="dialog-close" aria-label="Close">×</button></div>
       <div class="leave-copy"><p>You will leave <strong id="leave-group-name"></strong>.</p><ul><li>Your levels, stars and personal scores will not be deleted.</li><li>Your results will disappear from this group’s tables once online sharing is enabled.</li><li>You can rejoin later with the invitation code.</li></ul></div>
+      <p id="leave-error" class="dialog-error hidden" role="alert"></p>
       <div class="social-dialog-actions"><button id="cancel-leave" class="quiet-button" type="button">Stay in group</button><button id="confirm-leave" class="danger-button" type="button">Yes, leave group</button></div>
     </dialog>
   </main>

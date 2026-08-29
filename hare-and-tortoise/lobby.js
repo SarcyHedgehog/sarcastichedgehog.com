@@ -1,6 +1,7 @@
 (() => {
   'use strict';
 
+  const API_URL = 'https://www.ariolasoft.com/hare-and-tortoise-api/index.php';
   const storage = window.HareTortoiseStorage;
   const levels = window.HareTortoiseWorlds[0].levels;
   const lobbyView = document.getElementById('lobby-view');
@@ -10,16 +11,26 @@
   const socialForm = document.getElementById('social-form');
   const socialFields = document.getElementById('social-fields');
   const leaveDialog = document.getElementById('leave-dialog');
+  const serviceStatus = document.getElementById('service-status');
+  const serviceNote = document.getElementById('service-note');
   const social = {
-    player: { id: makeId(), name: 'Trail Player' },
+    player: { id: makeId(), token: makeToken(), name: 'Trail Player' },
     membership: null,
     previousMembership: null
   };
+  const remote = { online: false, leaderboards: { hare: [], tortoise: [] } };
   let progress = {};
   let dialogMode = 'player';
+  let syncTimer;
 
   function makeId() {
     return crypto.randomUUID?.() || `player-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  function makeToken() {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
   }
 
   function escapeHtml(value) {
@@ -75,16 +86,35 @@
     }
   }
 
-  function boardRow(track) {
+  function localBoardRow(track) {
     const total = totalFor(track);
     if (total == null) return '<li class="empty-score"><span>Complete a level to set your first score.</span></li>';
     return `<li><b>1</b><span>${escapeHtml(social.player.name)}<small>${goldenCount(track)} Golden Hedgehog${goldenCount(track) === 1 ? '' : 's'}</small></span><strong>${total.toFixed(2)}s</strong></li>`;
   }
 
+  function sharedBoardRows(track) {
+    const rows = remote.leaderboards?.[track] || [];
+    if (!rows.length) return '<li class="empty-score"><span>No group scores have arrived yet.</span></li>';
+    return rows.map((entry, index) => `<li><b>${index + 1}</b><span>${escapeHtml(entry.name)}<small>${entry.completed} level${entry.completed === 1 ? '' : 's'} · ${entry.golden} 🦔</small></span><strong>${entry.completed ? `${Number(entry.total).toFixed(2)}s` : '—'}</strong></li>`).join('');
+  }
+
   function renderBoards() {
-    document.getElementById('hare-board').innerHTML = boardRow('hare');
-    document.getElementById('tortoise-board').innerHTML = boardRow('tortoise');
-    document.getElementById('score-scope').textContent = social.membership?.name || 'This device';
+    const shared = Boolean(remote.online && social.membership);
+    document.getElementById('hare-board').innerHTML = shared ? sharedBoardRows('hare') : localBoardRow('hare');
+    document.getElementById('tortoise-board').innerHTML = shared ? sharedBoardRows('tortoise') : localBoardRow('tortoise');
+    document.getElementById('score-scope').textContent = shared ? social.membership.name : 'This device';
+  }
+
+  function renderService() {
+    serviceStatus.textContent = remote.online ? 'Shared scores live' : 'Offline · local scores';
+    serviceStatus.classList.toggle('offline', !remote.online);
+    serviceNote.innerHTML = remote.online
+      ? '<span aria-hidden="true">✓</span> Group membership and score tables are synchronised. Saved layouts remain on this device.'
+      : '<span aria-hidden="true">↻</span> Shared service unavailable. Progress and layouts continue saving on this device.';
+    const groupStatus = document.getElementById('group-status');
+    if (groupStatus) groupStatus.textContent = remote.online
+      ? 'Membership and scores are shared with this group.'
+      : 'Showing the last group details saved on this device. Changes require a connection.';
   }
 
   function renderSocial() {
@@ -95,16 +125,74 @@
     member.classList.toggle('hidden', !social.membership);
     if (social.membership) {
       document.getElementById('group-name').textContent = social.membership.name;
-      document.getElementById('group-code').textContent = `Invite code · ${social.membership.code}`;
+      const count = social.membership.memberCount ? ` · ${social.membership.memberCount} member${social.membership.memberCount === 1 ? '' : 's'}` : '';
+      document.getElementById('group-code').textContent = `Invite code · ${social.membership.code}${count}`;
     }
     const rejoin = document.getElementById('rejoin-group');
     rejoin.classList.toggle('hidden', !social.previousMembership || Boolean(social.membership));
-    if (social.previousMembership && !social.membership) rejoin.textContent = `Rejoin ${social.previousMembership.name}`;
-    renderBoards();
+    if (social.previousMembership && !social.membership) rejoin.textContent = `Rejoin ${social.previousMembership.name || 'previous group'}`;
+    renderService(); renderBoards();
   }
 
   async function saveSocial() {
     await storage.setState('social:v1', JSON.parse(JSON.stringify(social)));
+  }
+
+  async function api(action, payload = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 9000);
+    try {
+      const response = await fetch(`${API_URL}?action=${encodeURIComponent(action)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Player-ID': social.player.id,
+          'X-Player-Token': social.player.token
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        const error = new Error(data.message || 'The shared score service could not complete that request.');
+        error.code = data.error || `http_${response.status}`;
+        throw error;
+      }
+      remote.online = true;
+      return data;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function applyRemote(data) {
+    const previous = social.membership || social.previousMembership;
+    if (data.player?.name) social.player.name = data.player.name;
+    social.membership = data.membership || null;
+    if (data.previousGroupCode) {
+      social.previousMembership = previous?.code === data.previousGroupCode
+        ? previous
+        : { name: 'previous group', code: data.previousGroupCode };
+    } else if (social.membership) {
+      social.previousMembership = null;
+    }
+    remote.leaderboards = data.leaderboards || { hare: [], tortoise: [] };
+  }
+
+  async function syncRemote() {
+    try {
+      const data = await api('sync', { name: social.player.name, progress });
+      applyRemote(data);
+      await saveSocial();
+    } catch (_) {
+      remote.online = false;
+    }
+    renderSocial();
+  }
+
+  function scheduleRemoteSync() {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(syncRemote, 350);
   }
 
   function openGame(track, levelId) {
@@ -116,9 +204,9 @@
   function openDialog(mode) {
     dialogMode = mode;
     const labels = {
-      player: ['PLAYER', 'Edit player', 'This name will appear on score tables.', 'Save'],
-      create: ['NEW GROUP', 'Create a group', 'Choose a clubhouse name. An invitation code will be generated for later online sharing.', 'Create group'],
-      join: ['JOIN GROUP', 'Join a group', 'Enter the group name and invitation code supplied by a friend.', 'Join group']
+      player: ['PLAYER', 'Edit player', 'This name appears on shared score tables.', 'Save'],
+      create: ['NEW GROUP', 'Create a group', 'Choose a clubhouse name. You will receive an invitation code to share with friends.', 'Create group'],
+      join: ['JOIN GROUP', 'Join a group', 'Enter the invitation code supplied by a friend.', 'Join group']
     }[mode];
     document.getElementById('social-eyebrow').textContent = labels[0];
     document.getElementById('social-title').textContent = labels[1];
@@ -129,33 +217,44 @@
     } else if (mode === 'create') {
       socialFields.innerHTML = '<label>Group name<input name="groupName" maxlength="32" required autocomplete="off" placeholder="The Prickly Racers"></label>';
     } else {
-      socialFields.innerHTML = '<label>Group name<input name="groupName" maxlength="32" required autocomplete="off" placeholder="The Prickly Racers"></label><label>Invitation code<input name="inviteCode" maxlength="16" required autocomplete="off" placeholder="MEADOW-7K4P"></label>';
+      socialFields.innerHTML = '<label>Invitation code<input name="inviteCode" maxlength="16" required autocomplete="off" placeholder="HEDGE-4K7PMQ"></label>';
     }
     socialDialog.showModal();
     socialFields.querySelector('input')?.focus();
   }
 
-  function inviteCode() {
-    const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const suffix = Array.from({ length: 4 }, () => letters[Math.floor(Math.random() * letters.length)]).join('');
-    return `MEADOW-${suffix}`;
+  function showDialogError(message) {
+    document.getElementById('social-intro').textContent = message;
   }
 
   socialForm.addEventListener('submit', async event => {
     event.preventDefault();
     const values = new FormData(socialForm);
-    if (dialogMode === 'player') {
-      social.player.name = String(values.get('playerName') || '').trim().slice(0, 24) || 'Trail Player';
-    } else {
-      const name = String(values.get('groupName') || '').trim().slice(0, 32);
-      const code = dialogMode === 'create' ? inviteCode() : String(values.get('inviteCode') || '').trim().toUpperCase().slice(0, 16);
-      if (!name || !code) return;
-      social.membership = { id: `group-${code.toLowerCase()}`, name, code, role: dialogMode === 'create' ? 'owner' : 'member', joinedAt: new Date().toISOString() };
-      social.previousMembership = null;
+    const confirm = document.getElementById('confirm-social');
+    confirm.disabled = true;
+    try {
+      if (dialogMode === 'player') {
+        social.player.name = String(values.get('playerName') || '').trim().slice(0, 24) || 'Trail Player';
+        await saveSocial();
+        await syncRemote();
+      } else {
+        const action = dialogMode === 'create' ? 'create-group' : 'join-group';
+        const payload = dialogMode === 'create'
+          ? { name: social.player.name, groupName: String(values.get('groupName') || '').trim().slice(0, 32) }
+          : { name: social.player.name, inviteCode: String(values.get('inviteCode') || '').trim().toUpperCase().slice(0, 16) };
+        const data = await api(action, payload);
+        applyRemote(data);
+        await saveSocial();
+        renderSocial();
+      }
+      socialDialog.close();
+    } catch (error) {
+      remote.online = false;
+      showDialogError(error.message);
+      renderService();
+    } finally {
+      confirm.disabled = false;
     }
-    await saveSocial();
-    renderSocial();
-    socialDialog.close();
   });
 
   document.getElementById('edit-player').addEventListener('click', () => openDialog('player'));
@@ -166,34 +265,50 @@
   document.getElementById('lobby-return').addEventListener('click', () => {
     gameView.classList.add('screen-hidden');
     lobbyView.classList.remove('screen-hidden');
-    renderProgress(); renderBoards();
+    renderProgress(); renderBoards(); scheduleRemoteSync();
   });
   progressMap.addEventListener('click', event => {
     const button = event.target.closest('button[data-track][data-level]');
     if (button && !button.disabled) openGame(button.dataset.track, button.dataset.level);
   });
   document.getElementById('leave-group').addEventListener('click', () => {
+    document.getElementById('leave-error').classList.add('hidden');
     document.getElementById('leave-group-name').textContent = social.membership?.name || 'this group';
     leaveDialog.showModal();
   });
   document.getElementById('cancel-leave').addEventListener('click', () => leaveDialog.close());
   document.getElementById('close-leave').addEventListener('click', () => leaveDialog.close());
   document.getElementById('confirm-leave').addEventListener('click', async () => {
-    social.previousMembership = social.membership;
-    social.membership = null;
-    await saveSocial();
-    renderSocial();
-    leaveDialog.close();
+    const errorEl = document.getElementById('leave-error');
+    try {
+      const previous = social.membership;
+      const data = await api('leave-group', { name: social.player.name });
+      applyRemote(data);
+      if (!social.previousMembership && previous) social.previousMembership = previous;
+      await saveSocial();
+      renderSocial();
+      leaveDialog.close();
+    } catch (error) {
+      remote.online = false;
+      errorEl.textContent = error.message;
+      errorEl.classList.remove('hidden');
+      renderService();
+    }
   });
   document.getElementById('rejoin-group').addEventListener('click', async () => {
-    social.membership = social.previousMembership;
-    social.previousMembership = null;
-    await saveSocial();
+    if (!social.previousMembership?.code) return;
+    try {
+      const data = await api('join-group', { name: social.player.name, inviteCode: social.previousMembership.code });
+      applyRemote(data);
+      await saveSocial();
+    } catch (_) {
+      remote.online = false;
+    }
     renderSocial();
   });
   window.addEventListener('hare-tortoise-progress', event => {
     progress = event.detail || {};
-    renderProgress(); renderBoards();
+    renderProgress(); renderBoards(); scheduleRemoteSync();
   });
 
   async function init() {
@@ -201,15 +316,23 @@
       await storage.ready();
       const [savedSocial, savedProgress] = await Promise.all([storage.getState('social:v1'), storage.getState('progress:v2')]);
       if (savedSocial?.player?.id) {
-        social.player = { id: savedSocial.player.id, name: String(savedSocial.player.name || 'Trail Player').slice(0, 24) };
+        social.player = {
+          id: savedSocial.player.id,
+          token: savedSocial.player.token || makeToken(),
+          name: String(savedSocial.player.name || 'Trail Player').slice(0, 24)
+        };
         social.membership = savedSocial.membership || null;
         social.previousMembership = savedSocial.previousMembership || null;
       } else {
         await saveSocial();
       }
       progress = savedProgress || {};
+      // Persist a newly generated device token before attempting the network.
+      // Otherwise an offline first visit would create a different identity on reload.
+      await saveSocial();
     } catch (_) {}
     renderSocial(); renderProgress();
+    await syncRemote();
   }
 
   init();
