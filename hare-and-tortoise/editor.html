@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173b3a">
+  <title>Hare &amp; Tortoise — Level Workshop</title>
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <header class="editor-head">
+    <div>
+      <span class="eyebrow">SARCASTIC HEDGEHOG · DESIGN TOOLS</span>
+      <h1>Level Workshop</h1>
+    </div>
+    <div class="head-actions">
+      <label>Load level <select id="level-picker"></select></label>
+      <button id="new-level">New level</button>
+      <button id="save-draft">Save draft</button>
+      <button id="export-level" class="primary">Export JSON</button>
+      <button id="import-level">Import JSON</button>
+      <a href="index.html">Open game</a>
+    </div>
+  </header>
+
+  <main class="editor-grid">
+    <aside class="panel properties">
+      <section>
+        <h2>World</h2>
+        <div class="form-grid two">
+          <label>World number<input id="world-number" type="number" min="1"></label>
+          <label>Theme<select id="world-theme"><option value="meadow">Green meadow</option><option value="image">Image</option></select></label>
+          <label class="wide">World ID<input id="world-id"></label>
+          <label class="wide">World name<input id="world-name"></label>
+          <label class="wide">World description<input id="world-subtitle"></label>
+          <label class="wide">Background image URL<input id="background-image" placeholder="Optional; preset used when empty"></label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Level</h2>
+        <div class="form-grid two">
+          <label>Level number<input id="level-number" type="number" min="1"></label>
+          <label>Revision<input id="level-revision" type="number" min="1"></label>
+          <label class="wide">Level ID<input id="level-id"></label>
+          <label class="wide">Name<input id="level-name"></label>
+          <label class="wide">Description<textarea id="level-description" rows="2"></textarea></label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Scoring</h2>
+        <div class="score-grid">
+          <b></b><b>Par</b><b>★</b><b>★★</b><b>★★★</b>
+          <strong>🐇 Hare</strong><input id="hare-par" type="number"><input id="hare-one" type="number"><input id="hare-two" type="number"><input id="hare-three" type="number">
+          <strong>🐢 Tortoise</strong><input id="tortoise-par" type="number"><input id="tortoise-one" type="number"><input id="tortoise-two" type="number"><input id="tortoise-three" type="number">
+        </div>
+        <label class="inline-field">Carrot clock effect <input id="carrot-seconds" type="number" min="0" step="0.25"> seconds</label>
+      </section>
+
+      <section>
+        <h2>Available pieces</h2>
+        <p class="hint">These are in addition to pieces already placed on the selected trail.</p>
+        <div class="inventory-grid">
+          <label>Platform<input id="inventory-platform" type="number" min="0"></label>
+          <label>Ramp<input id="inventory-ramp" type="number" min="0"></label>
+          <label>Spring<input id="inventory-spring" type="number" min="0"></label>
+          <label>Elbow<input id="inventory-pipe" type="number" min="0"></label>
+        </div>
+      </section>
+    </aside>
+
+    <section class="board-panel">
+      <div class="board-toolbar">
+        <div class="track-tabs" role="group" aria-label="Starting layout to edit">
+          <button class="active" data-track="hare">🐇 Hare layout</button>
+          <button data-track="tortoise">🐢 Tortoise layout</button>
+        </div>
+        <span id="editor-status">Select or place an item</span>
+      </div>
+      <div class="canvas-stage"><canvas id="editor-canvas" width="1100" height="620"></canvas></div>
+      <div class="coordinates"><span>Canvas 1100 × 620</span><span id="pointer-position">x — · y —</span></div>
+    </section>
+
+    <aside class="panel palette-panel">
+      <section>
+        <h2>Place</h2>
+        <div id="palette" class="palette">
+          <button class="active" data-tool="select"><b>↖</b>Select / move</button>
+          <button data-tool="launcher"><b>☄</b>Drop-off</button>
+          <button data-tool="goal"><b>◎</b>Goal</button>
+          <button data-tool="carrot"><b>🥕</b>Carrot</button>
+          <button data-tool="hedgehog"><b>🦔</b>Golden Hedgehog</button>
+          <button data-tool="crate"><b>▣</b>Fixed crate</button>
+          <button data-tool="block"><b>■</b>Fixed block</button>
+          <button data-tool="platform"><b>━</b>Platform</button>
+          <button data-tool="ramp"><b>╱</b>Ramp</button>
+          <button data-tool="spring"><b>≋</b>Spring</button>
+          <button data-tool="pipe"><b>┐</b>Elbow</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head"><h2>Selected item</h2><button id="delete-selected" class="danger" disabled>Delete</button></div>
+        <div id="selection-empty" class="empty">Nothing selected.</div>
+        <div id="selection-fields" class="selection-fields hidden">
+          <strong id="selection-title"></strong>
+          <div class="form-grid two">
+            <label>X<input id="selected-x" type="number"></label>
+            <label>Y<input id="selected-y" type="number"></label>
+            <label id="width-field">Width<input id="selected-width" type="number" min="10"></label>
+            <label id="height-field">Height<input id="selected-height" type="number" min="10"></label>
+            <label id="angle-field">Angle °<input id="selected-angle" type="number" step="45"></label>
+            <label id="vx-field">Launch VX<input id="selected-vx" type="number"></label>
+            <label id="vy-field">Launch VY<input id="selected-vy" type="number"></label>
+            <label id="colour-field">Colour<input id="selected-colour" type="color"></label>
+          </div>
+          <button id="rotate-selected">Rotate selected</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>Level contents</h2>
+        <div id="object-list" class="object-list"></div>
+      </section>
+    </aside>
+  </main>
+
+  <dialog id="json-dialog">
+    <form method="dialog" class="dialog-card">
+      <div class="section-head"><div><span class="eyebrow">LEVEL PACKAGE</span><h2 id="json-title">Export JSON</h2></div><button value="cancel" aria-label="Close">×</button></div>
+      <p id="json-help">Copy this package into the level source when it is ready.</p>
+      <textarea id="json-text" spellcheck="false"></textarea>
+      <div class="dialog-actions">
+        <button id="copy-json" type="button">Copy</button>
+        <button id="download-json" type="button">Download</button>
+        <button id="apply-json" type="button" class="primary hidden">Apply import</button>
+        <button value="cancel">Close</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="levels.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

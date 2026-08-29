@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#173b3a">
+  <meta name="description" content="A playable prototype of Hare and Tortoise, a two-sided contraption puzzle.">
+  <title>Hare &amp; Tortoise — Prototype</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="rotate-notice" role="status">
+    <span aria-hidden="true">↻</span>
+    <strong>Turn for the trail</strong>
+    <small>Hare &amp; Tortoise plays in landscape.</small>
+  </div>
+  <main class="shell">
+    <header class="masthead">
+      <div class="brand">
+        <span class="eyebrow">SARCASTIC HEDGEHOG · 2012 / 2026</span>
+        <h1>Hare <i>&amp;</i> Tortoise</h1>
+        <p>Sometimes it’s better to enjoy the journey.</p>
+      </div>
+      <div class="characters" aria-hidden="true">
+        <span class="hare">🐇</span><span class="trackline"></span><span class="tortoise">🐢</span>
+      </div>
+    </header>
+
+    <section class="game-card">
+      <nav class="level-strip" aria-label="Green Meadows levels">
+        <div class="world-label"><span id="world-name">Green Meadows</span><small id="world-subtitle">Choose a trail, then beat par to open the next level.</small></div>
+        <div id="level-list" class="level-list"></div>
+      </nav>
+      <div class="mode-row" role="group" aria-label="Choose a challenge">
+        <button class="mode active" data-mode="hare">
+          <span>🐇</span><strong>The Hare</strong><small>Reach the goal quickly</small>
+        </button>
+        <button class="mode" data-mode="tortoise">
+          <span>🐢</span><strong>The Tortoise</strong><small>Take the scenic route</small>
+        </button>
+        <div class="scoreboard">
+          <span id="objective">FASTEST SUCCESSFUL RUN</span>
+          <strong id="clock">0.00s</strong>
+          <small id="best">Best —</small>
+        </div>
+      </div>
+
+      <div class="workbench">
+        <div class="canvas-wrap">
+          <canvas id="game" width="1100" height="620" aria-label="Contraption construction board"></canvas>
+          <div id="message" class="message">
+            <strong>Training Meadow</strong>
+            <span>Adjust the course, then launch the sphere.</span>
+          </div>
+          <div id="stall-countdown" class="stall-countdown hidden" role="status" aria-live="assertive">
+            <span>STALLED BALL</span>
+            <strong>10</strong>
+            <small>Move again or the attempt ends</small>
+          </div>
+        </div>
+
+        <aside class="toolbox" aria-label="Construction pieces">
+          <div class="toolbox-title"><span>THE TOOL SHED</span><small id="remaining">8 pieces available</small></div>
+          <button class="tool selected" data-tool="select"><b>↖</b><span>Select</span><small>move a piece</small></button>
+          <button class="tool" data-tool="platform"><b>━</b><span>Platform</span><small><em id="count-platform">4</em> left</small></button>
+          <button class="tool" data-tool="ramp"><b>╱</b><span>Ramp</span><small><em id="count-ramp">2</em> left</small></button>
+          <button class="tool" data-tool="spring"><b>≋</b><span>Spring</span><small><em id="count-spring">2</em> left</small></button>
+          <button class="tool" data-tool="pipe"><b>┐</b><span>Elbow</span><small><em id="count-pipe">0</em> left</small></button>
+          <div class="edit-tools">
+            <button id="rotate" title="Rotate selected piece">↻ <span>Rotate</span></button>
+            <button id="delete" title="Remove selected piece">× <span>Remove</span></button>
+          </div>
+          <button id="launch" class="launch"><span>LAUNCH</span><small>send them on their way</small></button>
+          <button id="layouts" class="layout-button"><span>Saved layouts</span><small id="save-status">Preparing local saves…</small></button>
+          <button id="reset" class="reset">Reset this course</button>
+        </aside>
+      </div>
+
+      <footer class="game-footer">
+        <p><b>Build:</b> choose a piece and tap the meadow. Drag to move; select to rotate or remove.</p>
+        <div class="legend"><span>🥕 optional</span><span>🦔 golden challenge</span><span>Pieces tire after repeated hits</span></div>
+      </footer>
+    </section>
+
+    <dialog id="layout-dialog" class="layout-dialog">
+      <div class="dialog-head">
+        <div><span class="eyebrow">ON THIS DEVICE</span><h2>Saved layouts</h2></div>
+        <button id="close-layouts" class="dialog-close" aria-label="Close saved layouts">×</button>
+      </div>
+      <p class="dialog-intro">Your working Hare and Tortoise courses are recovered automatically. Give the good ones a name to keep additional copies.</p>
+      <form id="save-layout-form" class="save-layout-form">
+        <label for="layout-name">Layout name</label>
+        <div><input id="layout-name" maxlength="42" autocomplete="off" placeholder="My ingenious route"><button type="submit">Save a copy</button></div>
+      </form>
+      <div id="layout-list" class="layout-list" aria-live="polite"></div>
+      <footer class="dialog-foot"><span>Stored in this browser</span><span id="layout-count">0 layouts</span></footer>
+    </dialog>
+  </main>
+  <script src="levels.js"></script>
+  <script src="storage.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
