@@ -16,6 +16,7 @@
   const saveStatusEl = document.getElementById('save-status');
   const layoutCountEl = document.getElementById('layout-count');
   const levelListEl = document.getElementById('level-list');
+  const geometry = window.HareTortoiseGeometry;
   const storage = window.HareTortoiseStorage;
   const worlds = window.HareTortoiseWorlds;
   const world = worlds[0];
@@ -60,7 +61,11 @@
 
   function freshRecord() { return { overall: null, golden: null, stars: 0, parBeaten: false }; }
   function freshPieces(value) {
-    return clone(value || []).map((piece, index) => ({ ...piece, id: index + 1, hits: 0, tired: false }));
+    return clone(value || []).map((piece, index) => {
+      const result = { ...piece, id: index + 1, hits: 0, tired: false };
+      Object.assign(result, geometry.clampPiece(result));
+      return result;
+    });
   }
   function level(id = currentLevelId) { return levels.find(entry => entry.id === id) || levels[0]; }
   function pieces(track = mode, levelId = currentLevelId) { return courses[levelId][track]; }
@@ -91,15 +96,17 @@
       const x = Number(raw.x), y = Number(raw.y), angle = Number(raw.angle);
       if (![x, y, angle].every(Number.isFinite)) continue;
       counts[raw.type]++;
-      result.push({
+      const piece = {
         id: result.length + 1,
         type: raw.type,
-        x: Math.max(125, Math.min(985, x)),
-        y: Math.max(110, Math.min(535, y)),
+        x,
+        y,
         angle,
         hits: 0,
         tired: false
-      });
+      };
+      Object.assign(piece, geometry.clampPiece(piece));
+      result.push(piece);
     }
     return result;
   }
@@ -230,7 +237,7 @@
     };
   }
 
-  function pieceLength(piece) { return piece.type === 'platform' ? 155 : piece.type === 'ramp' ? 130 : piece.type === 'pipe' ? 124 : 105; }
+  function pieceLength(piece) { return geometry.pieceLength(piece); }
   function segment(piece) {
     const half = pieceLength(piece) / 2;
     const dx = Math.cos(piece.angle) * half;
@@ -289,9 +296,10 @@
     if (activeTool === 'select') {
       selectedId = found?.id ?? null;
       dragging = Boolean(found);
-    } else if (remaining(activeTool) > 0 && point.x > 115 && point.x < 995 && point.y > 95 && point.y < 540) {
+    } else if (remaining(activeTool) > 0) {
       const angle = activeTool === 'ramp' ? -.35 : 0;
       const piece = { id: nextId(), type: activeTool, x: point.x, y: point.y, angle, hits: 0 };
+      Object.assign(piece, geometry.clampPiece(piece));
       pieces().push(piece);
       selectedId = piece.id;
       activeTool = 'select';
@@ -306,8 +314,7 @@
     const piece = pieces().find(p => p.id === selectedId);
     if (!piece) return;
     const point = toWorld(event);
-    piece.x = Math.max(125, Math.min(985, point.x));
-    piece.y = Math.max(110, Math.min(535, point.y));
+    Object.assign(piece, geometry.clampPiece(piece, point.x, point.y));
   });
   canvas.addEventListener('pointerup', () => {
     if (dragging) scheduleDraftSave();
@@ -322,7 +329,11 @@
   document.getElementById('rotate').addEventListener('click', () => {
     if (running) return;
     const piece = pieces().find(p => p.id === selectedId);
-    if (piece) { piece.angle += piece.type === 'pipe' ? Math.PI / 2 : Math.PI / 4; sound('bounce'); scheduleDraftSave(); }
+    if (piece) {
+      piece.angle += piece.type === 'pipe' ? Math.PI / 2 : Math.PI / 4;
+      Object.assign(piece, geometry.clampPiece(piece));
+      sound('bounce'); scheduleDraftSave();
+    }
   });
   document.getElementById('delete').addEventListener('click', () => {
     if (running || selectedId == null) return;

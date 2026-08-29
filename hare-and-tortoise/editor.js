@@ -8,6 +8,7 @@
   const pointerEl = document.getElementById('pointer-position');
   const dialog = document.getElementById('json-dialog');
   const jsonText = document.getElementById('json-text');
+  const geometry = window.HareTortoiseGeometry;
   const sourceWorld = window.HareTortoiseWorlds[0];
   const DRAFT_KEY = 'hare-and-tortoise:level-editor:v1';
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -212,7 +213,10 @@
     if (!object) return;
     object.x = number('selected-x', object.x); object.y = number('selected-y', object.y);
     if (selected.kind === 'fixed') { object.width = number('selected-width', object.width); object.height = number('selected-height', object.height); }
-    if (selected.kind === 'starter') object.angle = number('selected-angle', 0) * Math.PI / 180;
+    if (selected.kind === 'starter') {
+      object.angle = number('selected-angle', 0) * Math.PI / 180;
+      Object.assign(object, geometry.clampPiece(object));
+    }
     if (selected.kind === 'launcher') { object.vx = number('selected-vx', object.vx); object.vy = number('selected-vy', object.vy); }
     if (selected.kind === 'fixed' && object.type === 'block') object.color = document.getElementById('selected-colour').value;
     updateObjectList(); draw();
@@ -242,7 +246,9 @@
       select({ kind:'fixed', index:level.fixedObjects.length-1 });
       return;
     }
-    level.starter[track].push({ type, ...point, angle:0 });
+    const piece = { type, ...point, angle:0 };
+    Object.assign(piece, geometry.clampPiece(piece));
+    level.starter[track].push(piece);
     select({ kind:'starter', index:level.starter[track].length-1 });
   }
 
@@ -347,7 +353,7 @@
   });
   canvas.addEventListener('pointermove',event=>{
     const point=toWorld(event);pointerEl.textContent=`x ${Math.round(point.x)} · y ${Math.round(point.y)}`;
-    if(!dragging)return;const object=selectedObject();const next=clampPoint({x:point.x-dragOffset.x,y:point.y-dragOffset.y});object.x=next.x;object.y=next.y;updateSelectionPanel();updateObjectList();draw();
+    if(!dragging)return;const object=selectedObject();const desired={x:point.x-dragOffset.x,y:point.y-dragOffset.y};const next=selected.kind==='starter'?geometry.clampPiece(object,desired.x,desired.y):clampPoint(desired);object.x=next.x;object.y=next.y;updateSelectionPanel();updateObjectList();draw();
   });
   canvas.addEventListener('pointerup',()=>dragging=false);
   canvas.addEventListener('pointerleave',()=>{pointerEl.textContent='x — · y —';dragging=false;});
@@ -361,7 +367,7 @@
   ids.forEach(id=>document.getElementById(id).addEventListener('input',readForm));
   ['selected-x','selected-y','selected-width','selected-height','selected-angle','selected-vx','selected-vy','selected-colour'].forEach(id=>document.getElementById(id).addEventListener('input',applySelectionFields));
   document.getElementById('delete-selected').addEventListener('click',deleteSelection);
-  document.getElementById('rotate-selected').addEventListener('click',()=>{const object=selectedObject();if(!object||selected.kind!=='starter')return;object.angle=(object.angle||0)+(object.type==='pipe'?Math.PI/2:Math.PI/4);updateSelectionPanel();draw();});
+  document.getElementById('rotate-selected').addEventListener('click',()=>{const object=selectedObject();if(!object||selected.kind!=='starter')return;object.angle=(object.angle||0)+(object.type==='pipe'?Math.PI/2:Math.PI/4);Object.assign(object,geometry.clampPiece(object));updateSelectionPanel();draw();});
   picker.addEventListener('change',()=>loadEntry(sourceWorld.levels[Number(picker.value)],Number(picker.value)));
   document.getElementById('new-level').addEventListener('click',()=>loadEntry({id:`${world.id||'world'}-${sourceWorld.levels.length+1}`,number:sourceWorld.levels.length+1,revision:1,name:'Untitled Level',description:'',availablePieces:{platform:3,ramp:2,spring:1,pipe:0},scoring:{hare:{par:12,stars:{one:12,two:9,three:6}},tortoise:{par:12,stars:{one:12,two:18,three:26}},carrotClockEffectSeconds:1},launcher:{x:92,y:270,vx:290,vy:-52},goal:{x:1020,y:500,radius:34},carrots:[],goldenHedgehog:null,fixedObjects:[],starter:{hare:[],tortoise:[]}},-1));
   document.getElementById('save-draft').addEventListener('click',()=>{localStorage.setItem(DRAFT_KEY,JSON.stringify(editorPackage()));statusEl.textContent='Draft saved in this browser';});
