@@ -37,7 +37,7 @@
   function pieceBounds(piece) {
     if (piece.type === 'pipe') return pipeBounds(piece);
     const half = pieceLength(piece) / 2;
-    const radius = 8;
+    const radius = piece.type === 'spring' ? 12 : 8;
     const dx = Math.cos(piece.angle || 0) * half;
     const dy = Math.sin(piece.angle || 0) * half;
     return {

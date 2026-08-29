@@ -23,6 +23,12 @@
   const levels = world.levels;
   const PHYSICS_VERSION = 2;
   const GAME_CONFIG = Object.freeze({
+    pieceDurability: Object.freeze({
+      platform: 8,
+      ramp: 8,
+      spring: 12,
+      pipe: 32
+    }),
     stalledBall: Object.freeze({
       countdownSeconds: 10,
       settleSeconds: 0.75,
@@ -73,6 +79,10 @@
   function nextId() { return Math.max(0, ...pieces().map(p => p.id)) + 1; }
 
   function validTrack(value) { return value === 'tortoise' ? 'tortoise' : 'hare'; }
+
+  function pieceDurability(piece) {
+    return GAME_CONFIG.pieceDurability[piece.type] || 8;
+  }
 
   function pieceLimits(levelId = currentLevelId, track = mode) {
     const entry = level(levelId);
@@ -439,7 +449,7 @@
       if (bounced) {
         piece.hits++;
         sound('bounce');
-        if (piece.hits >= 8) {
+        if (piece.hits >= pieceDurability(piece)) {
           piece.tired = true;
           setMessage('A tired elbow gave way', 'The pipe has had quite enough excitement.');
         }
@@ -483,7 +493,7 @@
     }
     piece.hits++;
     sound(piece.type === 'spring' ? 'spring' : 'bounce');
-    if (piece.hits >= 8) {
+    if (piece.hits >= pieceDurability(piece)) {
       piece.tired = true;
       setMessage('A tired piece gave way', 'Long loops need a more durable route.');
     }
@@ -832,23 +842,36 @@
     ctx.save();
     if (piece.tired) ctx.globalAlpha = .25;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = piece.id === selectedId ? '#fff7d0' : piece.type === 'spring' ? '#e4a03c' : '#244f48';
-    ctx.lineWidth = piece.type === 'spring' ? 20 : 15;
+    ctx.strokeStyle = piece.id === selectedId ? '#fff7d0' : '#244f48';
+    ctx.lineWidth = 15;
     ctx.shadowColor = 'rgba(16,48,41,.28)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 5;
     if (piece.type === 'spring') {
-      const angle = piece.angle, len = pieceLength(piece), count = 8;
-      ctx.beginPath();
-      for (let i=0;i<=count;i++) {
-        const t=i/count-.5; const along=t*len; const across=(i%2?1:-1)*9;
-        const x=piece.x+Math.cos(angle)*along-Math.sin(angle)*across;
-        const y=piece.y+Math.sin(angle)*along+Math.cos(angle)*across;
-        i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      const angle = piece.angle, len = pieceLength(piece);
+      const alongX = Math.cos(angle), alongY = Math.sin(angle);
+      const normalX = -alongY, normalY = alongX;
+      if (piece.id === selectedId) {
+        ctx.strokeStyle = '#fff7d0'; ctx.lineWidth = 30;
+        ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
       }
-      ctx.stroke();
+      ctx.strokeStyle = '#683d27'; ctx.lineWidth = 24;
+      ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
+      ctx.strokeStyle = '#e4a03c'; ctx.lineWidth = 17;
+      ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
+      ctx.strokeStyle = '#ffe29a'; ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
+      ctx.strokeStyle = 'rgba(104,61,39,.72)'; ctx.lineWidth = 2;
+      for (let along = -len / 2 + 12; along < len / 2; along += 16) {
+        const x = piece.x + alongX * along, y = piece.y + alongY * along;
+        ctx.beginPath();
+        ctx.moveTo(x - normalX * 8, y - normalY * 8);
+        ctx.lineTo(x + normalX * 8, y + normalY * 8);
+        ctx.stroke();
+      }
     } else { ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke(); }
     ctx.shadowColor='transparent';
-    ctx.strokeStyle = piece.type === 'spring' ? '#f9d772' : '#7ca08d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
-    if (piece.hits > 4) { ctx.fillStyle='#b64d37'; ctx.beginPath(); ctx.arc(piece.x,piece.y,5+piece.hits,0,Math.PI*2); ctx.fill(); }
+    if (piece.type !== 'spring') { ctx.strokeStyle = '#7ca08d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke(); }
+    const durability = pieceDurability(piece);
+    if (piece.hits > durability / 2) { ctx.fillStyle='#b64d37'; ctx.beginPath(); ctx.arc(piece.x,piece.y,6+8*piece.hits/durability,0,Math.PI*2); ctx.fill(); }
     ctx.restore();
   }
 
