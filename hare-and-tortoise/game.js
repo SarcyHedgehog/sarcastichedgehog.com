@@ -200,7 +200,12 @@
     try {
       await storage.setState('progress:v2', clone(progress));
       setSaveStatus('Scores saved locally');
+      announceProgress();
     } catch (_) { setSaveStatus('Local save unavailable'); }
+  }
+
+  function announceProgress() {
+    window.dispatchEvent(new CustomEvent('hare-tortoise-progress', { detail: clone(progress) }));
   }
 
   function resetCollectibles() {
@@ -1086,6 +1091,7 @@
       storageReady = true;
       activateMode(lastTrack, false);
       setSaveStatus('Saved on this device');
+      announceProgress();
     } catch (_) {
       storageReady = false;
       setSaveStatus('Local save unavailable');
@@ -1106,5 +1112,12 @@
 
   document.getElementById('world-name').textContent = world.name;
   document.getElementById('world-subtitle').textContent = world.subtitle;
+  window.HareTortoiseGame = {
+    open(track = 'hare', levelId) {
+      if (running) return false;
+      activateMode(track, false);
+      return selectLevel(levelId || highestUnlocked(track), false);
+    }
+  };
   resetCollectibles(); updateTools(); updateBest(); renderLevelNav(); restoreLocalData(); requestAnimationFrame(frame);
 })();

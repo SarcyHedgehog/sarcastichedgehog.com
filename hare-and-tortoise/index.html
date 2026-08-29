@@ -26,10 +26,66 @@
       </div>
     </header>
 
-    <section class="game-card">
+    <section id="lobby-view" class="lobby-card" aria-labelledby="lobby-title">
+      <header class="lobby-head">
+        <div>
+          <span class="eyebrow">THE CLUBHOUSE</span>
+          <h2 id="lobby-title">Welcome back, <span id="player-name">Trail Player</span></h2>
+          <p>Choose a trail, compare your progress and meet your group.</p>
+        </div>
+        <div class="lobby-head-actions">
+          <span class="local-pill">Local foundation</span>
+          <button id="edit-player" class="quiet-button" type="button">Edit player</button>
+        </div>
+      </header>
+
+      <div class="lobby-grid">
+        <section class="progress-panel" aria-labelledby="progress-title">
+          <div class="panel-heading">
+            <div><span class="eyebrow">GREEN MEADOWS</span><h3 id="progress-title">Your trails</h3></div>
+            <span id="progress-summary" class="panel-stat">0 / 6 cleared</span>
+          </div>
+          <div id="progress-map" class="progress-map"></div>
+          <p class="local-note"><b>Layouts remain private:</b> saved contraptions stay only in this browser and are never included in group scores.</p>
+        </section>
+
+        <aside id="group-panel" class="group-panel" aria-labelledby="group-title">
+          <span class="eyebrow">YOUR GROUP</span>
+          <div id="group-empty">
+            <h3 id="group-title">No group yet</h3>
+            <p>Groups will provide a private leaderboard for friends. Set yours up now; online synchronisation comes in the backend pass.</p>
+            <div class="group-actions">
+              <button id="join-group" class="primary-button" type="button">Join group</button>
+              <button id="create-group" class="quiet-button" type="button">Create group</button>
+            </div>
+            <button id="rejoin-group" class="text-button hidden" type="button"></button>
+          </div>
+          <div id="group-member" class="hidden">
+            <div class="group-identity"><span aria-hidden="true">🦔</span><div><h3 id="group-name">Group name</h3><small id="group-code">Invite code</small></div></div>
+            <p class="group-status">Membership is currently saved on this device. Your scores are ready to sync when the shared service is connected.</p>
+            <button id="leave-group" class="danger-button" type="button">Leave group</button>
+          </div>
+        </aside>
+
+        <section class="leaderboard-panel" aria-labelledby="leaderboard-title">
+          <div class="panel-heading">
+            <div><span class="eyebrow">SCORE TABLES</span><h3 id="leaderboard-title">Clubhouse standings</h3></div>
+            <span id="score-scope" class="panel-stat">This device</span>
+          </div>
+          <div class="leaderboard-grid">
+            <article><header><span>🐇</span><div><strong>The Hare</strong><small>Lowest completed total</small></div></header><ol id="hare-board"></ol></article>
+            <article><header><span>🐢</span><div><strong>The Tortoise</strong><small>Longest completed total</small></div></header><ol id="tortoise-board"></ol></article>
+          </div>
+          <p class="service-note"><span aria-hidden="true">↻</span> Shared friends’ scores will appear here once the persistent leaderboard service is connected.</p>
+        </section>
+      </div>
+    </section>
+
+    <section id="game-view" class="game-card screen-hidden">
       <nav class="level-strip" aria-label="Green Meadows levels">
         <div class="world-label"><span id="world-name">Green Meadows</span><small id="world-subtitle">Choose a trail, then beat par to open the next level.</small></div>
         <div id="level-list" class="level-list"></div>
+        <button id="lobby-return" class="lobby-return" type="button" aria-label="Return to clubhouse">⌂ <span>Clubhouse</span></button>
       </nav>
       <div class="mode-row" role="group" aria-label="Choose a challenge">
         <button class="mode active" data-mode="hare">
@@ -95,10 +151,29 @@
       <div id="layout-list" class="layout-list" aria-live="polite"></div>
       <footer class="dialog-foot"><span>Stored in this browser</span><span id="layout-count">0 layouts</span></footer>
     </dialog>
+
+    <dialog id="social-dialog" class="layout-dialog social-dialog">
+      <form id="social-form" method="dialog">
+        <div class="dialog-head">
+          <div><span id="social-eyebrow" class="eyebrow">PLAYER</span><h2 id="social-title">Edit player</h2></div>
+          <button id="close-social" class="dialog-close" value="cancel" aria-label="Close">×</button>
+        </div>
+        <p id="social-intro" class="dialog-intro"></p>
+        <div id="social-fields" class="social-fields"></div>
+        <div class="social-dialog-actions"><button class="quiet-button" value="cancel" type="button" id="cancel-social">Cancel</button><button class="primary-button" value="default" type="submit" id="confirm-social">Save</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="leave-dialog" class="layout-dialog leave-dialog">
+      <div class="dialog-head"><div><span class="eyebrow">LEAVE GROUP</span><h2>Are you sure?</h2></div><button id="close-leave" class="dialog-close" aria-label="Close">×</button></div>
+      <div class="leave-copy"><p>You will leave <strong id="leave-group-name"></strong>.</p><ul><li>Your levels, stars and personal scores will not be deleted.</li><li>Your results will disappear from this group’s tables once online sharing is enabled.</li><li>You can rejoin later with the invitation code.</li></ul></div>
+      <div class="social-dialog-actions"><button id="cancel-leave" class="quiet-button" type="button">Stay in group</button><button id="confirm-leave" class="danger-button" type="button">Yes, leave group</button></div>
+    </dialog>
   </main>
   <script src="geometry.js"></script>
   <script src="levels.js"></script>
   <script src="storage.js"></script>
   <script src="game.js"></script>
+  <script src="lobby.js"></script>
 </body>
 </html>
