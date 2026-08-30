@@ -376,7 +376,18 @@
 
   function renderLevelNav() {
     levelListEl.replaceChildren();
-    levels.forEach((entry, index) => {
+    const currentIndex = Math.max(0, levels.findIndex(entry => entry.id === currentLevelId));
+    let visibleLevels;
+    if (levels.length <= 3 || currentIndex <= 1) {
+      visibleLevels = levels.slice(0, 3);
+    } else if (currentIndex >= levels.length - 1) {
+      visibleLevels = levels.slice(Math.max(0, levels.length - 2));
+    } else {
+      visibleLevels = levels.slice(currentIndex - 1, currentIndex + 2);
+    }
+
+    visibleLevels.forEach(entry => {
+      const index = levels.indexOf(entry);
       const unlocked = isLevelUnlocked(entry.id);
       const result = progress[entry.id][mode];
       const button = document.createElement('button');
@@ -387,10 +398,22 @@
       const status = unlocked
         ? (result.stars ? `${'★'.repeat(result.stars)}${'☆'.repeat(3 - result.stars)}` : `Par ${entry.scoring[mode].par}s`)
         : `🔒 Beat level ${index}`;
+      button.setAttribute('aria-label', `Level ${index + 1}: ${entry.name}. ${status}`);
       button.innerHTML = `<span>${index + 1}</span><strong>${entry.name}</strong><small>${status}</small>`;
       button.addEventListener('click', () => selectLevel(entry.id));
       levelListEl.append(button);
     });
+
+    if (levels.length >= 8 && currentIndex >= levels.length - 1) {
+      const nextWorld = worlds[worlds.indexOf(world) + 1];
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'level-button next-world';
+      button.disabled = true;
+      button.setAttribute('aria-label', nextWorld ? `New World: ${nextWorld.name}. Locked` : 'New World. Coming soon');
+      button.innerHTML = `<span>→</span><strong>New World</strong><small>${nextWorld ? `🔒 ${nextWorld.name}` : 'Coming soon'}</small>`;
+      levelListEl.append(button);
+    }
   }
 
   function selectLevel(levelId, announce = true) {

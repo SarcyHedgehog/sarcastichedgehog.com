@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#173b3a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="A playable prototype of Hare and Tortoise, a two-sided contraption puzzle.">
   <title>Hare &amp; Tortoise — Prototype</title>
   <link rel="stylesheet" href="styles.css">
@@ -100,20 +103,20 @@
       <nav class="level-strip" aria-label="Green Meadows levels">
         <div class="world-label"><span id="world-name">Green Meadows</span><small id="world-subtitle">Choose a trail, then beat par to open the next level.</small></div>
         <div id="level-list" class="level-list"></div>
-        <button id="lobby-return" class="lobby-return" type="button" aria-label="Return to clubhouse">⌂ <span>Clubhouse</span></button>
-      </nav>
-      <div class="mode-row" role="group" aria-label="Choose a challenge">
-        <button class="mode active" data-mode="hare">
-          <span>🐇</span><strong>The Hare</strong><small>Reach the goal quickly</small>
-        </button>
-        <button class="mode" data-mode="tortoise">
-          <span>🐢</span><strong>The Tortoise</strong><small>Take the scenic route</small>
-        </button>
         <div class="scoreboard">
           <span id="objective">FASTEST SUCCESSFUL RUN</span>
           <strong id="clock">0.00s</strong>
           <small id="best">Best —</small>
         </div>
+        <button id="lobby-return" class="lobby-return" type="button" aria-label="Return to clubhouse">⌂ <span>Clubhouse</span></button>
+      </nav>
+      <div class="mode-row" role="group" aria-label="Choose a challenge">
+        <button class="mode active" data-mode="hare" aria-label="Play the Hare trail">
+          <span>🐇</span><strong>The Hare</strong><small>Reach the goal quickly</small>
+        </button>
+        <button class="mode" data-mode="tortoise" aria-label="Play the Tortoise trail">
+          <span>🐢</span><strong>The Tortoise</strong><small>Take the scenic route</small>
+        </button>
       </div>
 
       <div class="workbench">
