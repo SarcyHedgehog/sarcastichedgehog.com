@@ -72,10 +72,25 @@
             <div><span class="eyebrow">SCORE TABLES</span><h3 id="leaderboard-title">Clubhouse standings</h3></div>
             <span id="score-scope" class="panel-stat">This device</span>
           </div>
-          <div class="leaderboard-grid">
-            <article><header><span>🐇</span><div><strong>The Hare</strong><small>Lowest completed total</small></div></header><ol id="hare-board"></ol></article>
-            <article><header><span>🐢</span><div><strong>The Tortoise</strong><small>Longest completed total</small></div></header><ol id="tortoise-board"></ol></article>
+          <div class="record-summary">
+            <div class="record-section-heading"><div><span class="eyebrow">RECORD HOLDERS</span><h4>Clubhouse summary</h4></div><small>Ordinary and Golden Hedgehog records combined</small></div>
+            <div class="score-table-wrap"><table><thead><tr><th scope="col">Player</th><th scope="col">Hare</th><th scope="col">Tortoise</th></tr></thead><tbody id="records-summary"></tbody></table></div>
           </div>
+          <section class="record-set" aria-labelledby="ordinary-records-title">
+            <div class="record-section-heading"><div><span class="eyebrow">FIRST CHALLENGE</span><h4 id="ordinary-records-title">Level records</h4></div><small>Runs completed without the Golden Hedgehog</small></div>
+            <div class="leaderboard-grid">
+              <article><header><span>🐇</span><div><strong>The Hare</strong><small>Fastest successful run</small></div></header><div class="score-table-wrap"><table><thead><tr><th scope="col">Level</th><th scope="col">Player</th><th scope="col">Time</th></tr></thead><tbody id="standard-hare-board"></tbody></table></div></article>
+              <article><header><span>🐢</span><div><strong>The Tortoise</strong><small>Slowest successful run</small></div></header><div class="score-table-wrap"><table><thead><tr><th scope="col">Level</th><th scope="col">Player</th><th scope="col">Time</th></tr></thead><tbody id="standard-tortoise-board"></tbody></table></div></article>
+            </div>
+          </section>
+          <section class="record-set golden-record-set" aria-labelledby="golden-records-title">
+            <div class="record-section-heading"><div><span class="eyebrow">SECOND CHALLENGE</span><h4 id="golden-records-title">Golden Hedgehog records</h4></div><small>Runs completed while collecting the Golden Hedgehog</small></div>
+            <div class="leaderboard-grid">
+              <article><header><span>🐇</span><div><strong>The Hare</strong><small>Fastest Hedgehog run</small></div></header><div class="score-table-wrap"><table><thead><tr><th scope="col">Level</th><th scope="col">Player</th><th scope="col">Time</th></tr></thead><tbody id="golden-hare-board"></tbody></table></div></article>
+              <article><header><span>🐢</span><div><strong>The Tortoise</strong><small>Slowest Hedgehog run</small></div></header><div class="score-table-wrap"><table><thead><tr><th scope="col">Level</th><th scope="col">Player</th><th scope="col">Time</th></tr></thead><tbody id="golden-tortoise-board"></tbody></table></div></article>
+            </div>
+          </section>
+          <div id="player-key" class="player-key" aria-label="Group player key"></div>
           <p id="service-note" class="service-note"><span aria-hidden="true">↻</span> Connecting to the shared score service…</p>
         </section>
       </div>

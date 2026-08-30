@@ -65,7 +65,7 @@
   }]));
   const lastLevelByTrack = { hare: levels[0].id, tortoise: levels[0].id };
 
-  function freshRecord() { return { overall: null, golden: null, stars: 0, parBeaten: false }; }
+  function freshRecord() { return { overall: null, standard: null, golden: null, stars: 0, parBeaten: false }; }
   function freshPieces(value) {
     return clone(value || []).map((piece, index) => {
       const result = { ...piece, id: index + 1, hits: 0, tired: false };
@@ -616,7 +616,11 @@
       const result = record();
       const betterThan = value => value == null || (mode === 'hare' ? scoreTime < value : scoreTime > value);
       if (betterThan(result.overall)) result.overall = scoreTime;
-      if (hedgehog?.got && betterThan(result.golden)) result.golden = scoreTime;
+      if (hedgehog?.got) {
+        if (betterThan(result.golden)) result.golden = scoreTime;
+      } else if (betterThan(result.standard)) {
+        result.standard = scoreTime;
+      }
       const stars = starsFor(time);
       result.stars = Math.max(result.stars, stars);
       const newlyBeatPar = beatsPar(time) && !result.parBeaten;
@@ -1071,9 +1075,12 @@
         for (const track of ['hare', 'tortoise']) {
           const saved = savedProgress?.[entry.id]?.[track];
           const target = progress[entry.id][track];
-          for (const category of ['overall', 'golden']) {
+          for (const category of ['overall', 'standard', 'golden']) {
             const value = saved?.[category];
             if (typeof value === 'number' && Number.isFinite(value) && value >= 0) target[category] = value;
+          }
+          if (target.standard == null && target.overall != null && (target.golden == null || target.overall !== target.golden)) {
+            target.standard = target.overall;
           }
           target.stars = Math.max(0, Math.min(3, Number(saved?.stars) || 0));
           target.parBeaten = Boolean(saved?.parBeaten);
@@ -1081,9 +1088,12 @@
       }
       for (const track of ['hare', 'tortoise']) {
         const target = progress['green-1'][track];
-        for (const category of ['overall', 'golden']) {
+        for (const category of ['overall', 'standard', 'golden']) {
           const value = oldProgress?.[track]?.[category];
           if (target[category] == null && typeof value === 'number' && Number.isFinite(value) && value >= 0) target[category] = value;
+        }
+        if (target.standard == null && target.overall != null && (target.golden == null || target.overall !== target.golden)) {
+          target.standard = target.overall;
         }
       }
       if (levels.some(entry => entry.id === lastHareLevel)) lastLevelByTrack.hare = lastHareLevel;

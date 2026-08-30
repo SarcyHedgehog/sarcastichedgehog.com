@@ -18,7 +18,7 @@
     membership: null,
     previousMembership: null
   };
-  const remote = { online: false, leaderboards: { hare: [], tortoise: [] } };
+  const remote = { online: false, members: [], records: emptyRecords() };
   let progress = {};
   let dialogMode = 'player';
   let syncTimer;
@@ -50,13 +50,26 @@
     return levels.reduce((total, entry) => total + ['hare', 'tortoise'].filter(track => progress?.[entry.id]?.[track]?.parBeaten).length, 0);
   }
 
-  function totalFor(track) {
-    const results = levels.map(entry => progress?.[entry.id]?.[track]?.overall).filter(Number.isFinite);
-    return results.length ? results.reduce((sum, value) => sum + value, 0) : null;
+  function emptyRecords() {
+    return { standard: { hare: [], tortoise: [] }, golden: { hare: [], tortoise: [] } };
   }
 
-  function goldenCount(track) {
-    return levels.filter(entry => Number.isFinite(progress?.[entry.id]?.[track]?.golden)).length;
+  function standardScore(record) {
+    if (Number.isFinite(record?.standard)) return record.standard;
+    if (Number.isFinite(record?.overall) && (!Number.isFinite(record?.golden) || record.overall !== record.golden)) return record.overall;
+    return null;
+  }
+
+  function scoreLabel(value) {
+    return Number.isFinite(value) ? `${Number(value).toFixed(2)}s` : '—';
+  }
+
+  function personalResult(record) {
+    const parts = [stars(record)];
+    const standard = standardScore(record);
+    if (Number.isFinite(standard)) parts.push(scoreLabel(standard));
+    if (Number.isFinite(record?.golden)) parts.push(`🦔 ${scoreLabel(record.golden)}`);
+    return parts.join(' · ');
   }
 
   function renderProgress() {
@@ -78,7 +91,7 @@
         button.dataset.track = track;
         button.dataset.level = entry.id;
         button.className = `trail-stop${record?.parBeaten ? ' complete' : ''}`;
-        button.innerHTML = `<b>${unlocked ? index + 1 : '🔒'}</b><span>${escapeHtml(entry.name)}</span><small>${unlocked ? stars(record) : `Beat level ${index}`}</small>`;
+        button.innerHTML = `<b>${unlocked ? index + 1 : '🔒'}</b><span>${escapeHtml(entry.name)}</span><small>${unlocked ? personalResult(record) : `Beat level ${index}`}</small>`;
         route.append(button);
       });
       row.append(heading, route);
@@ -86,22 +99,63 @@
     }
   }
 
-  function localBoardRow(track) {
-    const total = totalFor(track);
-    if (total == null) return '<li class="empty-score"><span>Complete a level to set your first score.</span></li>';
-    return `<li><b>1</b><span>${escapeHtml(social.player.name)}<small>${goldenCount(track)} Golden Hedgehog${goldenCount(track) === 1 ? '' : 's'}</small></span><strong>${total.toFixed(2)}s</strong></li>`;
+  function localStandings() {
+    const records = emptyRecords();
+    for (const entry of levels) {
+      for (const track of ['hare', 'tortoise']) {
+        const result = progress?.[entry.id]?.[track];
+        for (const category of ['standard', 'golden']) {
+          const time = category === 'standard' ? standardScore(result) : result?.golden;
+          if (!Number.isFinite(time)) continue;
+          records[category][track].push({ levelId: entry.id, playerId: social.player.id, playerNumber: 1, name: social.player.name, time });
+        }
+      }
+    }
+    return { members: [{ playerId: social.player.id, name: social.player.name, number: 1 }], records };
   }
 
-  function sharedBoardRows(track) {
-    const rows = remote.leaderboards?.[track] || [];
-    if (!rows.length) return '<li class="empty-score"><span>No group scores have arrived yet.</span></li>';
-    return rows.map((entry, index) => `<li><b>${index + 1}</b><span>${escapeHtml(entry.name)}<small>${entry.completed} level${entry.completed === 1 ? '' : 's'} · ${entry.golden} 🦔</small></span><strong>${entry.completed ? `${Number(entry.total).toFixed(2)}s` : '—'}</strong></li>`).join('');
+  function standings() {
+    return remote.online && social.membership ? remote : localStandings();
+  }
+
+  function renderRecordTable(category, track, data) {
+    const winners = new Map((data.records?.[category]?.[track] || []).map(entry => [entry.levelId, entry]));
+    document.getElementById(`${category}-${track}-board`).innerHTML = levels.map((level, index) => {
+      const winner = winners.get(level.id);
+      return `<tr><th scope="row">${index + 1}. ${escapeHtml(level.name)}</th><td>${winner ? `<i class="player-number" title="${escapeHtml(winner.name)}">${winner.playerNumber}</i>` : '—'}</td><td>${winner ? scoreLabel(winner.time) : '—'}</td></tr>`;
+    }).join('');
+  }
+
+  function renderSummary(data) {
+    const members = [...(data.members || [])].sort((left, right) => Number(left.number) - Number(right.number));
+    const counts = new Map(members.map(member => [member.playerId, { hare: 0, tortoise: 0 }]));
+    for (const category of ['standard', 'golden']) {
+      for (const track of ['hare', 'tortoise']) {
+        for (const winner of data.records?.[category]?.[track] || []) {
+          if (counts.has(winner.playerId)) counts.get(winner.playerId)[track]++;
+        }
+      }
+    }
+    const maximum = {
+      hare: Math.max(0, ...members.map(member => counts.get(member.playerId)?.hare || 0)),
+      tortoise: Math.max(0, ...members.map(member => counts.get(member.playerId)?.tortoise || 0))
+    };
+    document.getElementById('records-summary').innerHTML = members.length ? members.map(member => {
+      const result = counts.get(member.playerId) || { hare: 0, tortoise: 0 };
+      const hareClass = maximum.hare > 0 && result.hare === maximum.hare ? ' class="record-leader"' : '';
+      const tortoiseClass = maximum.tortoise > 0 && result.tortoise === maximum.tortoise ? ' class="record-leader"' : '';
+      return `<tr><th scope="row">${escapeHtml(member.name)}</th><td${hareClass}>${result.hare}</td><td${tortoiseClass}>${result.tortoise}</td></tr>`;
+    }).join('') : '<tr><th scope="row">No players yet</th><td>0</td><td>0</td></tr>';
+    document.getElementById('player-key').innerHTML = members.map(member => `<span><i class="player-number">${member.number}</i>${escapeHtml(member.name)}</span>`).join('');
   }
 
   function renderBoards() {
     const shared = Boolean(remote.online && social.membership);
-    document.getElementById('hare-board').innerHTML = shared ? sharedBoardRows('hare') : localBoardRow('hare');
-    document.getElementById('tortoise-board').innerHTML = shared ? sharedBoardRows('tortoise') : localBoardRow('tortoise');
+    const data = standings();
+    for (const category of ['standard', 'golden']) {
+      for (const track of ['hare', 'tortoise']) renderRecordTable(category, track, data);
+    }
+    renderSummary(data);
     document.getElementById('score-scope').textContent = shared ? social.membership.name : 'This device';
   }
 
@@ -176,7 +230,8 @@
     } else if (social.membership) {
       social.previousMembership = null;
     }
-    remote.leaderboards = data.leaderboards || { hare: [], tortoise: [] };
+    remote.members = data.members || [];
+    remote.records = data.records || emptyRecords();
   }
 
   async function syncRemote() {
