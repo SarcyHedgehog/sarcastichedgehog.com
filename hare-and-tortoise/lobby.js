@@ -51,13 +51,7 @@
   }
 
   function emptyRecords() {
-    return { standard: { hare: [], tortoise: [] }, golden: { hare: [], tortoise: [] } };
-  }
-
-  function standardScore(record) {
-    if (Number.isFinite(record?.standard)) return record.standard;
-    if (Number.isFinite(record?.overall) && (!Number.isFinite(record?.golden) || record.overall !== record.golden)) return record.overall;
-    return null;
+    return { overall: { hare: [], tortoise: [] }, golden: { hare: [], tortoise: [] } };
   }
 
   function scoreLabel(value) {
@@ -66,8 +60,7 @@
 
   function personalResult(record) {
     const parts = [stars(record)];
-    const standard = standardScore(record);
-    if (Number.isFinite(standard)) parts.push(scoreLabel(standard));
+    if (Number.isFinite(record?.overall)) parts.push(scoreLabel(record.overall));
     if (Number.isFinite(record?.golden)) parts.push(`🦔 ${scoreLabel(record.golden)}`);
     return parts.join(' · ');
   }
@@ -104,8 +97,8 @@
     for (const entry of levels) {
       for (const track of ['hare', 'tortoise']) {
         const result = progress?.[entry.id]?.[track];
-        for (const category of ['standard', 'golden']) {
-          const time = category === 'standard' ? standardScore(result) : result?.golden;
+        for (const category of ['overall', 'golden']) {
+          const time = result?.[category];
           if (!Number.isFinite(time)) continue;
           records[category][track].push({ levelId: entry.id, playerId: social.player.id, playerNumber: 1, name: social.player.name, time });
         }
@@ -129,7 +122,7 @@
   function renderSummary(data) {
     const members = [...(data.members || [])].sort((left, right) => Number(left.number) - Number(right.number));
     const counts = new Map(members.map(member => [member.playerId, { hare: 0, tortoise: 0 }]));
-    for (const category of ['standard', 'golden']) {
+    for (const category of ['overall', 'golden']) {
       for (const track of ['hare', 'tortoise']) {
         for (const winner of data.records?.[category]?.[track] || []) {
           if (counts.has(winner.playerId)) counts.get(winner.playerId)[track]++;
@@ -152,7 +145,7 @@
   function renderBoards() {
     const shared = Boolean(remote.online && social.membership);
     const data = standings();
-    for (const category of ['standard', 'golden']) {
+    for (const category of ['overall', 'golden']) {
       for (const track of ['hare', 'tortoise']) renderRecordTable(category, track, data);
     }
     renderSummary(data);
