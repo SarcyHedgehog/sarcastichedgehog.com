@@ -103,6 +103,36 @@
               { type: 'platform', x: 610, y: 245, angle: 0 }
             ]
           }
+        },
+        {
+          id: 'green-4',
+          revision: 1,
+          number: 4,
+          name: 'Mind the Gap',
+          description: 'Carrot in a box',
+          scoring: {
+            hare: { par: 7, stars: { one: 6, two: 5, three: 3 } },
+            tortoise: { par: 10, stars: { one: 10, two: 15, three: 22 } },
+            carrotClockEffectSeconds: 1
+          },
+          launcher: { x: 99, y: 234, vx: 290, vy: -52 },
+          goal: { x: 1008, y: 232, radius: 34 },
+          carrots: [
+            { x: 197, y: 428 },
+            { x: 840, y: 160 },
+            { x: 559, y: 256 }
+          ],
+          goldenHedgehog: { x: 850, y: 469 },
+          fixedObjects: [
+            { type: 'crate', x: 556, y: 74, width: 80, height: 78 },
+            { type: 'crate', x: 556, y: 157, width: 80, height: 78 },
+            { type: 'crate', x: 556, y: 516, width: 80, height: 78 },
+            { type: 'crate', x: 556, y: 350, width: 80, height: 78 },
+            { type: 'crate', x: 556, y: 434, width: 80, height: 78 }
+          ],
+          starter: { hare: [], tortoise: [] },
+          background: { type: 'preset', preset: 'meadow', image: '' },
+          availablePieces: { platform: 2, ramp: 1, spring: 3, pipe: 0 }
         }
       ]
     }
