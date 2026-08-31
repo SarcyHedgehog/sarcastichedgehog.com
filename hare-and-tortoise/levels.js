@@ -27,20 +27,12 @@
           carrots: [{ x: 405, y: 310 }, { x: 635, y: 365 }, { x: 820, y: 360 }],
           goldenHedgehog: { x: 570, y: 225 },
           fixedObjects: [],
-          starter: {
-            hare: [
-              { type: 'platform', x: 405, y: 365, angle: 0 },
-              { type: 'platform', x: 700, y: 525, angle: 0 },
-              { type: 'ramp', x: 620, y: 510, angle: -0.25 },
-              { type: 'spring', x: 945, y: 535, angle: 0 }
-            ],
-            tortoise: [
-              { type: 'platform', x: 405, y: 365, angle: 0 },
-              { type: 'platform', x: 700, y: 525, angle: 0 },
-              { type: 'ramp', x: 620, y: 510, angle: -0.25 },
-              { type: 'spring', x: 945, y: 535, angle: 0 }
-            ]
-          }
+          starter: [
+            { type: 'platform', x: 405, y: 365, angle: 0 },
+            { type: 'platform', x: 700, y: 525, angle: 0 },
+            { type: 'ramp', x: 620, y: 510, angle: -0.25 },
+            { type: 'spring', x: 945, y: 535, angle: 0 }
+          ]
         },
         {
           id: 'green-2',
@@ -61,16 +53,10 @@
           fixedObjects: [
             { type: 'block', x: 548, y: 400, width: 128, height: 128, color: '#4f8f45' }
           ],
-          starter: {
-            hare: [
-              { type: 'ramp', x: 360, y: 455, angle: -0.45 },
-              { type: 'platform', x: 705, y: 310, angle: 0 }
-            ],
-            tortoise: [
-              { type: 'ramp', x: 360, y: 455, angle: -0.45 },
-              { type: 'platform', x: 705, y: 310, angle: 0 }
-            ]
-          }
+          starter: [
+            { type: 'ramp', x: 360, y: 455, angle: -0.45 },
+            { type: 'platform', x: 705, y: 310, angle: 0 }
+          ]
         },
         {
           id: 'green-3',
@@ -95,14 +81,9 @@
             { type: 'crate', x: 900, y: 280, width: 80, height: 78 },
             { type: 'crate', x: 900, y: 200, width: 80, height: 78 }
           ],
-          starter: {
-            hare: [
-              { type: 'platform', x: 610, y: 245, angle: 0 }
-            ],
-            tortoise: [
-              { type: 'platform', x: 610, y: 245, angle: 0 }
-            ]
-          }
+          starter: [
+            { type: 'platform', x: 610, y: 245, angle: 0 }
+          ]
         },
         {
           id: 'green-4',
@@ -130,9 +111,66 @@
             { type: 'crate', x: 556, y: 350, width: 80, height: 78 },
             { type: 'crate', x: 556, y: 434, width: 80, height: 78 }
           ],
-          starter: { hare: [], tortoise: [] },
+          starter: [],
           background: { type: 'preset', preset: 'meadow', image: '' },
           availablePieces: { platform: 2, ramp: 1, spring: 3, pipe: 0 }
+        },
+        {
+          id: 'green-5',
+          revision: 1,
+          number: 5,
+          name: 'Carrot Dash',
+          description: 'Carrots on a Box',
+          scoring: {
+            hare: { par: 7, stars: { one: 6, two: 5, three: 3 } },
+            tortoise: { par: 8, stars: { one: 10, two: 13, three: 20 } },
+            carrotClockEffectSeconds: 2
+          },
+          launcher: { x: 99, y: 234, vx: 290, vy: -52 },
+          goal: { x: 1008, y: 232, radius: 34 },
+          carrots: [
+            { x: 504, y: 87 },
+            { x: 596, y: 90 },
+            { x: 549, y: 88 }
+          ],
+          goldenHedgehog: { x: 565, y: 483 },
+          fixedObjects: [
+            { type: 'block', x: 543, y: 181, width: 128, height: 128, color: '#4f8f45' }
+          ],
+          starter: [
+            { type: 'platform', x: 556, y: 491, angle: -2.792526803190927 }
+          ],
+          background: { type: 'preset', preset: 'meadow', image: '' },
+          availablePieces: { platform: 3, ramp: 2, spring: 2, pipe: 1 }
+        },
+        {
+          id: 'green-6',
+          revision: 1,
+          number: 6,
+          name: 'Hello Down There',
+          description: 'Up and Under',
+          scoring: {
+            hare: { par: 10, stars: { one: 8, two: 6, three: 4 } },
+            tortoise: { par: 12, stars: { one: 15, two: 20, three: 25 } },
+            carrotClockEffectSeconds: 1
+          },
+          launcher: { x: 584, y: 175, vx: 291, vy: -93 },
+          goal: { x: 573, y: 378, radius: 34 },
+          carrots: [
+            { x: 985, y: 311 },
+            { x: 261, y: 274 },
+            { x: 384, y: 399 }
+          ],
+          goldenHedgehog: { x: 982, y: 262 },
+          fixedObjects: [],
+          starter: [
+            { type: 'pipe', x: 981, y: 129, angle: 0 },
+            { type: 'platform', x: 947, y: 292, angle: 1.5707963267948966 },
+            { type: 'spring', x: 1015, y: 501.64525137490637, angle: -1.0821041362364843 },
+            { type: 'platform', x: 572, y: 290, angle: 0 }
+          ],
+          background: { type: 'preset', preset: 'meadow', image: '' },
+          availablePieces: { platform: 3, ramp: 2, spring: 2, pipe: 0 }
         }
       ]
     }

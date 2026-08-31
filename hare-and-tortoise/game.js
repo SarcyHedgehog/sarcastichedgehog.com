@@ -61,12 +61,17 @@
   let placementGridLayer = null;
 
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
+  function starterPieces(entry) {
+    if (Array.isArray(entry?.starter)) return entry.starter;
+    if (Array.isArray(entry?.starter?.shared)) return entry.starter.shared;
+    return entry?.starter?.hare || entry?.starter?.tortoise || [];
+  }
   let currentLevelId = levels[0].id;
   let limits = pieceLimits(levels[0].id, mode);
-  const courses = Object.fromEntries(levels.map(entry => [entry.id, {
-    hare: freshPieces(entry.starter.hare),
-    tortoise: freshPieces(entry.starter.tortoise)
-  }]));
+  const courses = Object.fromEntries(levels.map(entry => {
+    const starter = starterPieces(entry);
+    return [entry.id, { hare: freshPieces(starter), tortoise: freshPieces(starter) }];
+  }));
   const progress = Object.fromEntries(levels.map(entry => [entry.id, {
     hare: freshRecord(), tortoise: freshRecord()
   }]));
@@ -105,7 +110,7 @@
     if (!entry.availablePieces) return clone(entry.inventory || {});
     const totals = {};
     for (const type of Object.keys(entry.availablePieces)) {
-      const placed = (entry.starter?.[track] || []).filter(piece => piece.type === type).length;
+      const placed = starterPieces(entry).filter(piece => piece.type === type).length;
       totals[type] = entry.availablePieces[type] + placed;
     }
     return totals;
@@ -375,7 +380,7 @@
     selectedId = null; updateTools(); scheduleDraftSave();
   });
   document.getElementById('reset').addEventListener('click', () => {
-    courses[currentLevelId][mode] = freshPieces(level().starter[mode]); selectedId = null; running = false; ball = null;
+    courses[currentLevelId][mode] = freshPieces(starterPieces(level())); selectedId = null; running = false; ball = null;
     simulationAccumulator = 0;
     resetCollectibles(); updateTools(); launchButton.disabled = false; clockEl.textContent = '0.00s';
     updateClockEffect();

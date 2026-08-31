@@ -17,7 +17,6 @@
   world.number ||= 1;
   let currentSourceIndex = 0;
   let level = prepareLevel(sourceWorld.levels[0]);
-  let track = 'hare';
   let tool = 'select';
   let selected = null;
   let dragging = false;
@@ -31,8 +30,10 @@
     'carrot-seconds','inventory-platform','inventory-ramp','inventory-spring','inventory-pipe'
   ];
 
-  function maxStarterCount(entry, type) {
-    return Math.max(...['hare','tortoise'].map(side => (entry.starter?.[side] || []).filter(piece => piece.type === type).length));
+  function normaliseStarter(starter) {
+    if (Array.isArray(starter)) return starter;
+    if (Array.isArray(starter?.shared)) return starter.shared;
+    return starter?.hare?.length ? starter.hare : (starter?.tortoise || []);
   }
 
   function prepareLevel(value) {
@@ -46,9 +47,7 @@
     entry.carrots ||= [];
     entry.goldenHedgehog ??= null;
     entry.fixedObjects ||= [];
-    entry.starter ||= { hare: [], tortoise: [] };
-    entry.starter.hare ||= [];
-    entry.starter.tortoise ||= [];
+    entry.starter = normaliseStarter(entry.starter);
     entry.scoring ||= {};
     entry.scoring.hare ||= { par: 12, stars: { one: 12, two: 8, three: 5 } };
     entry.scoring.tortoise ||= { par: 10, stars: { one: 10, two: 15, three: 22 } };
@@ -56,7 +55,8 @@
     if (!entry.availablePieces) {
       entry.availablePieces = {};
       for (const type of ['platform','ramp','spring','pipe']) {
-        entry.availablePieces[type] = Math.max(0, (entry.inventory?.[type] || 0) - maxStarterCount(entry, type));
+        const placed = entry.starter.filter(piece => piece.type === type).length;
+        entry.availablePieces[type] = Math.max(0, (entry.inventory?.[type] || 0) - placed);
       }
     }
     return entry;
@@ -124,7 +124,7 @@
     delete exportedLevel.inventory;
     return {
       format: 'hare-and-tortoise-level',
-      version: 1,
+      version: 2,
       world: { number:world.number, id:world.id, name:world.name, subtitle:world.subtitle || '', theme:world.theme || 'meadow' },
       level: exportedLevel
     };
@@ -134,8 +134,6 @@
     level = prepareLevel(entry);
     if (index >= 0) currentSourceIndex = index;
     selected = null;
-    track = 'hare';
-    document.querySelectorAll('[data-track]').forEach(button => button.classList.toggle('active', button.dataset.track === track));
     writeForm();
     updateSelectionPanel();
     updateObjectList();
@@ -157,7 +155,7 @@
     if (selected.kind === 'hedgehog') return level.goldenHedgehog;
     if (selected.kind === 'carrot') return level.carrots[selected.index];
     if (selected.kind === 'fixed') return level.fixedObjects[selected.index];
-    if (selected.kind === 'starter') return level.starter[track][selected.index];
+    if (selected.kind === 'starter') return level.starter[selected.index];
     return null;
   }
 
@@ -169,7 +167,7 @@
     if (ref.kind === 'hedgehog') return 'Golden Hedgehog';
     if (ref.kind === 'carrot') return `Carrot ${ref.index + 1}`;
     if (ref.kind === 'fixed') return `${object?.type || 'Fixed item'} ${ref.index + 1}`;
-    if (ref.kind === 'starter') return `${track === 'hare' ? 'Hare' : 'Tortoise'} ${object?.type || 'piece'} ${ref.index + 1}`;
+    if (ref.kind === 'starter') return `Starting ${object?.type || 'piece'} ${ref.index + 1}`;
     return 'Item';
   }
 
@@ -248,8 +246,8 @@
     }
     const piece = { type, ...point, angle:0 };
     Object.assign(piece, geometry.clampPiece(piece));
-    level.starter[track].push(piece);
-    select({ kind:'starter', index:level.starter[track].length-1 });
+    level.starter.push(piece);
+    select({ kind:'starter', index:level.starter.length-1 });
   }
 
   function pointSegmentDistance(point, a, b) {
@@ -259,8 +257,8 @@
   }
 
   function hitTest(point) {
-    for (let i=level.starter[track].length-1;i>=0;i--) {
-      const piece=level.starter[track][i], length=piece.type==='platform'?155:piece.type==='ramp'?130:piece.type==='pipe'?124:105;
+    for (let i=level.starter.length-1;i>=0;i--) {
+      const piece=level.starter[i], length=piece.type==='platform'?155:piece.type==='ramp'?130:piece.type==='pipe'?124:105;
       if (Math.hypot(point.x-piece.x,point.y-piece.y) < (piece.type==='pipe'?72:18) || pointSegmentDistance(point,
         {x:piece.x-Math.cos(piece.angle)*length/2,y:piece.y-Math.sin(piece.angle)*length/2},
         {x:piece.x+Math.cos(piece.angle)*length/2,y:piece.y+Math.sin(piece.angle)*length/2}) < 18) return {kind:'starter',index:i};
@@ -281,7 +279,7 @@
     if (selected.kind === 'hedgehog') level.goldenHedgehog = null;
     if (selected.kind === 'carrot') level.carrots.splice(selected.index,1);
     if (selected.kind === 'fixed') level.fixedObjects.splice(selected.index,1);
-    if (selected.kind === 'starter') level.starter[track].splice(selected.index,1);
+    if (selected.kind === 'starter') level.starter.splice(selected.index,1);
     selected=null; updateSelectionPanel(); updateObjectList(); draw();
   }
 
@@ -289,7 +287,7 @@
     const list=document.getElementById('object-list'); list.innerHTML='';
     const refs=[{kind:'launcher'},{kind:'goal'},...level.carrots.map((_,index)=>({kind:'carrot',index}))];
     if (level.goldenHedgehog) refs.push({kind:'hedgehog'});
-    refs.push(...level.fixedObjects.map((_,index)=>({kind:'fixed',index})),...level.starter[track].map((_,index)=>({kind:'starter',index})));
+    refs.push(...level.fixedObjects.map((_,index)=>({kind:'fixed',index})),...level.starter.map((_,index)=>({kind:'starter',index})));
     for (const ref of refs) {
       const current=selected; selected=ref; const object=selectedObject(); const label=selectionLabel(); selected=current;
       const button=document.createElement('button');
@@ -336,7 +334,7 @@
 
   function draw() {
     ctx.clearRect(0,0,1100,620);drawBackground();
-    level.fixedObjects.forEach(drawFixed); level.starter[track].forEach(drawPiece);
+    level.fixedObjects.forEach(drawFixed); level.starter.forEach(drawPiece);
     ctx.font='27px serif';ctx.textAlign='center';level.carrots.forEach(item=>ctx.fillText('🥕',item.x,item.y));
     if(level.goldenHedgehog)ctx.fillText('🦔',level.goldenHedgehog.x,level.goldenHedgehog.y);
     ctx.strokeStyle='#173b3a';ctx.lineWidth=8;ctx.beginPath();ctx.arc(level.goal.x,level.goal.y,level.goal.radius||34,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#f4e6c1';ctx.beginPath();ctx.arc(level.goal.x,level.goal.y,25,0,Math.PI*2);ctx.fill();ctx.fillStyle='#173b3a';ctx.font='800 11px system-ui';ctx.fillText('GOAL',level.goal.x,level.goal.y+4);
@@ -361,15 +359,16 @@
   document.querySelectorAll('#palette button').forEach(button=>button.addEventListener('click',()=>{
     tool=button.dataset.tool;document.querySelectorAll('#palette button').forEach(item=>item.classList.toggle('active',item===button));statusEl.textContent=tool==='select'?'Select or drag an item':`Click the board to place: ${button.textContent.trim()}`;
   }));
-  document.querySelectorAll('[data-track]').forEach(button=>button.addEventListener('click',()=>{
-    track=button.dataset.track;selected=null;document.querySelectorAll('[data-track]').forEach(item=>item.classList.toggle('active',item===button));updateSelectionPanel();updateObjectList();draw();
-  }));
   ids.forEach(id=>document.getElementById(id).addEventListener('input',readForm));
   ['selected-x','selected-y','selected-width','selected-height','selected-angle','selected-vx','selected-vy','selected-colour'].forEach(id=>document.getElementById(id).addEventListener('input',applySelectionFields));
   document.getElementById('delete-selected').addEventListener('click',deleteSelection);
   document.getElementById('rotate-selected').addEventListener('click',()=>{const object=selectedObject();if(!object||selected.kind!=='starter')return;object.angle=(object.angle||0)+(object.type==='pipe'?Math.PI/2:Math.PI/4);Object.assign(object,geometry.clampPiece(object));updateSelectionPanel();draw();});
   picker.addEventListener('change',()=>loadEntry(sourceWorld.levels[Number(picker.value)],Number(picker.value)));
-  document.getElementById('new-level').addEventListener('click',()=>loadEntry({id:`${world.id||'world'}-${sourceWorld.levels.length+1}`,number:sourceWorld.levels.length+1,revision:1,name:'Untitled Level',description:'',availablePieces:{platform:3,ramp:2,spring:1,pipe:0},scoring:{hare:{par:12,stars:{one:12,two:9,three:6}},tortoise:{par:12,stars:{one:12,two:18,three:26}},carrotClockEffectSeconds:1},launcher:{x:92,y:270,vx:290,vy:-52},goal:{x:1020,y:500,radius:34},carrots:[],goldenHedgehog:null,fixedObjects:[],starter:{hare:[],tortoise:[]}},-1));
+  document.getElementById('new-level').addEventListener('click',()=>{
+    const number = sourceWorld.levels.length + 1;
+    const prefix = sourceWorld.levels[0]?.id?.match(/^(.*?)-\d+$/)?.[1] || world.id || 'world';
+    loadEntry({id:`${prefix}-${number}`,number,revision:1,name:'Untitled Level',description:'',availablePieces:{platform:3,ramp:2,spring:1,pipe:0},scoring:{hare:{par:12,stars:{one:12,two:9,three:6}},tortoise:{par:12,stars:{one:12,two:18,three:26}},carrotClockEffectSeconds:1},launcher:{x:92,y:270,vx:290,vy:-52},goal:{x:1020,y:500,radius:34},carrots:[],goldenHedgehog:null,fixedObjects:[],starter:[]},-1);
+  });
   document.getElementById('save-draft').addEventListener('click',()=>{localStorage.setItem(DRAFT_KEY,JSON.stringify(editorPackage()));statusEl.textContent='Draft saved in this browser';});
 
   function openJson(mode) {
