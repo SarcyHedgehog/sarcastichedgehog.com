@@ -70,7 +70,7 @@
   let limits = pieceLimits(levels[0].id, mode);
   const courses = Object.fromEntries(levels.map(entry => {
     const starter = starterPieces(entry);
-    return [entry.id, { hare: freshPieces(starter), tortoise: freshPieces(starter) }];
+    return [entry.id, { hare: freshPieces(starter, true), tortoise: freshPieces(starter, true) }];
   }));
   const progress = Object.fromEntries(levels.map(entry => [entry.id, {
     hare: freshRecord(), tortoise: freshRecord()
@@ -78,9 +78,9 @@
   const lastLevelByTrack = { hare: levels[0].id, tortoise: levels[0].id };
 
   function freshRecord() { return { overall: null, standard: null, golden: null, stars: 0, parBeaten: false }; }
-  function freshPieces(value) {
+  function freshPieces(value, locked = false) {
     return clone(value || []).map((piece, index) => {
-      const result = { ...piece, id: index + 1, hits: 0, tired: false };
+      const result = { ...piece, id: index + 1, hits: 0, tired: false, locked };
       Object.assign(result, geometry.clampPiece(result));
       return result;
     });
@@ -105,24 +105,39 @@
     return GAME_CONFIG.pieceDurability[piece.type] || 8;
   }
 
+  function availablePieceLimits(entry) {
+    if (entry.availablePieces) return clone(entry.availablePieces);
+    const totals = clone(entry.inventory || {});
+    for (const piece of starterPieces(entry)) totals[piece.type] = Math.max(0, (totals[piece.type] || 0) - 1);
+    return totals;
+  }
+
   function pieceLimits(levelId = currentLevelId, track = mode) {
     const entry = level(levelId);
-    if (!entry.availablePieces) return clone(entry.inventory || {});
+    const available = availablePieceLimits(entry);
     const totals = {};
-    for (const type of Object.keys(entry.availablePieces)) {
+    for (const type of Object.keys(available)) {
       const placed = starterPieces(entry).filter(piece => piece.type === type).length;
-      totals[type] = entry.availablePieces[type] + placed;
+      totals[type] = available[type] + placed;
     }
     return totals;
   }
 
-  function sanitisePieces(value, levelId = currentLevelId, track = mode) {
+  function sanitisePieces(value, levelId = currentLevelId, track = mode, playerPiecesOnly = false) {
     if (!Array.isArray(value)) return null;
-    const inventory = pieceLimits(levelId, track);
+    const entry = level(levelId);
+    const starters = starterPieces(entry);
+    const inventory = availablePieceLimits(entry);
     const allowed = new Set(Object.keys(inventory));
     const counts = { platform: 0, ramp: 0, spring: 0, pipe: 0 };
-    const result = [];
+    const legacyStarterCounts = { platform: 0, ramp: 0, spring: 0, pipe: 0 };
+    if (!playerPiecesOnly) for (const piece of starters) legacyStarterCounts[piece.type]++;
+    const result = freshPieces(starters, true);
     for (const raw of value) {
+      if (!playerPiecesOnly && legacyStarterCounts[raw?.type] > 0) {
+        legacyStarterCounts[raw.type]--;
+        continue;
+      }
       if (!allowed.has(raw?.type) || counts[raw.type] >= inventory[raw.type]) continue;
       const x = Number(raw.x), y = Number(raw.y), angle = Number(raw.angle);
       if (![x, y, angle].every(Number.isFinite)) continue;
@@ -134,7 +149,8 @@
         y,
         angle,
         hits: 0,
-        tired: false
+        tired: false,
+        locked: false
       };
       // Preserve coordinates from older saves. A piece adopts the current
       // grid only when the player next moves it.
@@ -150,7 +166,8 @@
       levelRevision: level(levelId).revision,
       track,
       physicsVersion: PHYSICS_VERSION,
-      pieces: courses[levelId][track].map(({ type, x, y, angle }) => ({ type, x, y, angle }))
+      playerPiecesOnly: true,
+      pieces: courses[levelId][track].filter(piece => !piece.locked).map(({ type, x, y, angle }) => ({ type, x, y, angle }))
     };
   }
 
@@ -307,6 +324,7 @@
   function nearestPiece(point) {
     let winner = null, distance = 34;
     for (const piece of pieces()) {
+      if (piece.locked) continue;
       const d = Math.hypot(point.x - piece.x, point.y - piece.y);
       const reach = piece.type === 'pipe' ? 78 : distance;
       if (d < reach && (!winner || d < distance)) { winner = piece; distance = d; }
@@ -324,6 +342,9 @@
       el.disabled = type !== 'select' && (limits[type] || 0) <= 0;
       el.classList.toggle('selected', type === activeTool);
     });
+    const selected = pieces().find(piece => piece.id === selectedId);
+    document.getElementById('rotate').disabled = running || !selected || selected.locked;
+    document.getElementById('delete').disabled = running || !selected || selected.locked;
   }
 
   let dragging = false;
@@ -345,6 +366,7 @@
       updateTools();
       sound('bounce');
     }
+    updateTools();
     canvas.setPointerCapture(event.pointerId);
   });
   canvas.addEventListener('pointermove', event => {
@@ -367,7 +389,7 @@
   document.getElementById('rotate').addEventListener('click', () => {
     if (running) return;
     const piece = pieces().find(p => p.id === selectedId);
-    if (piece) {
+    if (piece && !piece.locked) {
       piece.angle += piece.type === 'pipe' ? Math.PI / 2 : Math.PI / 4;
       Object.assign(piece, geometry.clampPiece(piece));
       sound('bounce'); scheduleDraftSave();
@@ -376,11 +398,11 @@
   document.getElementById('delete').addEventListener('click', () => {
     if (running || selectedId == null) return;
     const index = pieces().findIndex(p => p.id === selectedId);
-    if (index >= 0) pieces().splice(index, 1);
+    if (index >= 0 && !pieces()[index].locked) pieces().splice(index, 1);
     selectedId = null; updateTools(); scheduleDraftSave();
   });
   document.getElementById('reset').addEventListener('click', () => {
-    courses[currentLevelId][mode] = freshPieces(starterPieces(level())); selectedId = null; running = false; ball = null;
+    courses[currentLevelId][mode] = freshPieces(starterPieces(level()), true); selectedId = null; running = false; ball = null;
     simulationAccumulator = 0;
     resetCollectibles(); updateTools(); launchButton.disabled = false; clockEl.textContent = '0.00s';
     updateClockEffect();
@@ -483,6 +505,7 @@
       stallCountdownRemaining: GAME_CONFIG.stalledBall.countdownSeconds
     };
     running = true; simulationAccumulator = 0; launchButton.disabled = true;
+    updateTools();
     updateClockEffect();
     hideStallCountdown();
     messageEl.classList.add('hidden'); sound('launch');
@@ -899,14 +922,14 @@
       if (piece.id === selectedId) {
         ctx.strokeStyle = '#fff7d0'; ctx.lineWidth = 88; ctx.stroke();
       }
-      ctx.strokeStyle = '#205d38'; ctx.lineWidth = 82; ctx.stroke();
-      ctx.strokeStyle = '#43a957'; ctx.lineWidth = 74; ctx.stroke();
+      ctx.strokeStyle = piece.locked ? '#40586b' : '#205d38'; ctx.lineWidth = 82; ctx.stroke();
+      ctx.strokeStyle = piece.locked ? '#7898ad' : '#43a957'; ctx.lineWidth = 74; ctx.stroke();
       ctx.shadowColor = 'transparent';
-      ctx.strokeStyle = '#d6eee0'; ctx.lineWidth = 54; ctx.stroke();
+      ctx.strokeStyle = piece.locked ? '#dce8ee' : '#d6eee0'; ctx.lineWidth = 54; ctx.stroke();
       ctx.strokeStyle = 'rgba(255,255,255,.46)'; ctx.lineWidth = 4; ctx.stroke();
       const deflector = pipeWalls(piece)[0];
       ctx.beginPath(); ctx.moveTo(deflector[1].x, deflector[1].y); ctx.lineTo(deflector[2].x, deflector[2].y);
-      ctx.strokeStyle = '#43a957'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.stroke();
+      ctx.strokeStyle = piece.locked ? '#7898ad' : '#43a957'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.stroke();
       ctx.restore();
       return;
     }
@@ -914,7 +937,7 @@
     ctx.save();
     if (piece.tired) ctx.globalAlpha = .25;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = piece.id === selectedId ? '#fff7d0' : '#244f48';
+    ctx.strokeStyle = piece.id === selectedId ? '#fff7d0' : (piece.locked ? '#40586b' : '#244f48');
     ctx.lineWidth = 15;
     ctx.shadowColor = 'rgba(16,48,41,.28)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 5;
     if (piece.type === 'spring') {
@@ -925,13 +948,13 @@
         ctx.strokeStyle = '#fff7d0'; ctx.lineWidth = 30;
         ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
       }
-      ctx.strokeStyle = '#683d27'; ctx.lineWidth = 24;
+      ctx.strokeStyle = piece.locked ? '#40586b' : '#683d27'; ctx.lineWidth = 24;
       ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
-      ctx.strokeStyle = '#e4a03c'; ctx.lineWidth = 17;
+      ctx.strokeStyle = piece.locked ? '#7898ad' : '#e4a03c'; ctx.lineWidth = 17;
       ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
-      ctx.strokeStyle = '#ffe29a'; ctx.lineWidth = 7;
+      ctx.strokeStyle = piece.locked ? '#dce8ee' : '#ffe29a'; ctx.lineWidth = 7;
       ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
-      ctx.strokeStyle = 'rgba(104,61,39,.72)'; ctx.lineWidth = 2;
+      ctx.strokeStyle = piece.locked ? 'rgba(43,70,88,.72)' : 'rgba(104,61,39,.72)'; ctx.lineWidth = 2;
       for (let along = -len / 2 + 12; along < len / 2; along += 16) {
         const x = piece.x + alongX * along, y = piece.y + alongY * along;
         ctx.beginPath();
@@ -941,7 +964,7 @@
       }
     } else { ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke(); }
     ctx.shadowColor='transparent';
-    if (piece.type !== 'spring') { ctx.strokeStyle = '#7ca08d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke(); }
+    if (piece.type !== 'spring') { ctx.strokeStyle = piece.locked ? '#a9bfd0' : '#7ca08d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke(); }
     const durability = pieceDurability(piece);
     if (piece.hits > durability / 2) { ctx.fillStyle='#b64d37'; ctx.beginPath(); ctx.arc(piece.x,piece.y,6+8*piece.hits/durability,0,Math.PI*2); ctx.fill(); }
     ctx.restore();
@@ -964,7 +987,7 @@
   }
 
   function draw() {
-    drawBackground(); drawLauncher(); drawGoal(); (level().fixedObjects || []).forEach(drawFixedObject); drawCollectibles(); pieces().forEach(drawPiece); drawBall();
+    drawBackground(); if (!running) drawLauncher(); drawGoal(); (level().fixedObjects || []).forEach(drawFixedObject); drawCollectibles(); pieces().forEach(drawPiece); drawBall();
     for (const p of celebration) { ctx.globalAlpha=Math.max(0,p.life/1.5); ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,7,7); } ctx.globalAlpha=1;
   }
 
@@ -982,6 +1005,7 @@
       levelRevision: snapshot.levelRevision,
       track: snapshot.track,
       physicsVersion: snapshot.physicsVersion,
+      playerPiecesOnly: snapshot.playerPiecesOnly,
       pieces: snapshot.pieces,
       createdAt: now,
       updatedAt: now
@@ -1042,7 +1066,7 @@
     const track = validTrack(layout.track);
     const levelId = layout.levelId === 'training-meadow' ? 'green-1' : layout.levelId;
     if (!levels.some(entry => entry.id === levelId)) throw new Error('This layout belongs to an unknown level.');
-    const cleanPieces = sanitisePieces(layout.pieces, levelId, track);
+    const cleanPieces = sanitisePieces(layout.pieces, levelId, track, layout.playerPiecesOnly === true);
     if (!cleanPieces) throw new Error('This layout is not valid.');
     running = false; ball = null; simulationAccumulator = 0;
     launchButton.disabled = false; clockEl.textContent = '0.00s';
@@ -1126,7 +1150,7 @@
       for (const entry of levels) {
         for (const track of ['hare', 'tortoise']) {
           const draft = drafts[draftIndex++];
-          const cleanPieces = draft?.levelId === entry.id ? sanitisePieces(draft.pieces, entry.id, track) : null;
+          const cleanPieces = draft?.levelId === entry.id ? sanitisePieces(draft.pieces, entry.id, track, draft.playerPiecesOnly === true) : null;
           if (cleanPieces) courses[entry.id][track] = cleanPieces;
         }
       }
