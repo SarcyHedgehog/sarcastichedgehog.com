@@ -22,7 +22,13 @@
   const world = worlds[0];
   const levels = world.levels;
   const PHYSICS_VERSION = 2;
+  const suppliedConfig = window.HareTortoiseConfig || {};
   const GAME_CONFIG = Object.freeze({
+    placementGrid: Object.freeze({
+      enabled: suppliedConfig.placementGrid?.enabled !== false,
+      size: Math.max(1, Number(suppliedConfig.placementGrid?.size) || 10),
+      showDots: suppliedConfig.placementGrid?.showDots !== false
+    }),
     pieceDurability: Object.freeze({
       platform: 8,
       ramp: 8,
@@ -52,6 +58,7 @@
   const FIXED_STEP = 1 / 120;
   let simulationAccumulator = 0;
   const backgroundImageCache = new Map();
+  let placementGridLayer = null;
 
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
   let currentLevelId = levels[0].id;
@@ -77,6 +84,15 @@
   function pieces(track = mode, levelId = currentLevelId) { return courses[levelId][track]; }
   function record(track = mode, levelId = currentLevelId) { return progress[levelId][track]; }
   function nextId() { return Math.max(0, ...pieces().map(p => p.id)) + 1; }
+
+  function snapCoordinate(value) {
+    const grid = GAME_CONFIG.placementGrid;
+    return grid.enabled ? Math.round(value / grid.size) * grid.size : value;
+  }
+
+  function placePiece(piece, x = piece.x, y = piece.y) {
+    return geometry.clampPiece(piece, snapCoordinate(x), snapCoordinate(y));
+  }
 
   function validTrack(value) { return value === 'tortoise' ? 'tortoise' : 'hare'; }
 
@@ -115,6 +131,8 @@
         hits: 0,
         tired: false
       };
+      // Preserve coordinates from older saves. A piece adopts the current
+      // grid only when the player next moves it.
       Object.assign(piece, geometry.clampPiece(piece));
       result.push(piece);
     }
@@ -314,7 +332,7 @@
     } else if (remaining(activeTool) > 0) {
       const angle = activeTool === 'ramp' ? -.35 : 0;
       const piece = { id: nextId(), type: activeTool, x: point.x, y: point.y, angle, hits: 0 };
-      Object.assign(piece, geometry.clampPiece(piece));
+      Object.assign(piece, placePiece(piece));
       pieces().push(piece);
       selectedId = piece.id;
       activeTool = 'select';
@@ -329,7 +347,7 @@
     const piece = pieces().find(p => p.id === selectedId);
     if (!piece) return;
     const point = toWorld(event);
-    Object.assign(piece, geometry.clampPiece(piece, point.x, point.y));
+    Object.assign(piece, placePiece(piece, point.x, point.y));
   });
   canvas.addEventListener('pointerup', () => {
     if (dragging) scheduleDraftSave();
@@ -768,9 +786,26 @@
   }
 
   function drawGridAndRoof() {
-    ctx.strokeStyle = 'rgba(27,69,62,.12)'; ctx.lineWidth = 1;
-    for (let x=25; x<1100; x+=50) { ctx.beginPath(); ctx.moveTo(x,80); ctx.lineTo(x,540); ctx.stroke(); }
-    for (let y=90; y<540; y+=50) { ctx.beginPath(); ctx.moveTo(20,y); ctx.lineTo(1080,y); ctx.stroke(); }
+    const grid = GAME_CONFIG.placementGrid;
+    if (grid.showDots) {
+      if (!placementGridLayer) {
+        placementGridLayer = document.createElement('canvas');
+        placementGridLayer.width = 1100;
+        placementGridLayer.height = 620;
+        const guide = placementGridLayer.getContext('2d');
+        const size = grid.size;
+        guide.fillStyle = 'rgba(27,69,62,.18)';
+        for (let x = size; x < 1100; x += size) {
+          for (let y = Math.ceil(40 / size) * size; y < 560; y += size) {
+            const major = x % (size * 5) === 0 && y % (size * 5) === 0;
+            guide.beginPath();
+            guide.arc(x, y, major ? 1.45 : .65, 0, Math.PI * 2);
+            guide.fill();
+          }
+        }
+      }
+      ctx.drawImage(placementGridLayer, 0, 0);
+    }
 
     // A visible frame makes the playfield boundaries unambiguous. The top
     // rail is also a physical surface, so ambitious spheres stay in play.
