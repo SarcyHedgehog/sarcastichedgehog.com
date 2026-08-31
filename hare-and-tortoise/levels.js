@@ -171,6 +171,62 @@
           ],
           background: { type: 'preset', preset: 'meadow', image: '' },
           availablePieces: { platform: 3, ramp: 2, spring: 2, pipe: 0 }
+        },
+        {
+          id: 'green-7',
+          revision: 1,
+          number: 7,
+          name: 'Boing',
+          description: 'Weeeee',
+          scoring: {
+            hare: { par: 7, stars: { one: 5, two: 4, three: 3 } },
+            tortoise: { par: 12, stars: { one: 15, two: 20, three: 25 } },
+            carrotClockEffectSeconds: 1
+          },
+          launcher: { x: 56, y: 89, vx: 290, vy: -52 },
+          goal: { x: 1056, y: 76, radius: 34 },
+          carrots: [
+            { x: 361, y: 109 },
+            { x: 155, y: 325 },
+            { x: 736, y: 201 }
+          ],
+          goldenHedgehog: { x: 1007, y: 285 },
+          fixedObjects: [],
+          starter: [
+            { type: 'spring', x: 189.80555555555557, y: 493.8827807486631, angle: 0 },
+            { type: 'spring', x: 317.83641975308643, y: 492.67294117647054, angle: 0 },
+            { type: 'spring', x: 445.49691358024694, y: 493.6954010695187, angle: 0 },
+            { type: 'spring', x: 572.5092592592594, y: 493.63315508021395, angle: 0 },
+            { type: 'spring', x: 698.0092592592592, y: 493.79016042780745, angle: 0 }
+          ],
+          background: { type: 'preset', preset: 'meadow', image: '' },
+          availablePieces: { platform: 3, ramp: 2, spring: 0, pipe: 0 }
+        },
+        {
+          id: 'green-8',
+          revision: 1,
+          number: 8,
+          name: 'Who put that there?',
+          description: "Well that's annoying",
+          scoring: {
+            hare: { par: 8, stars: { one: 6, two: 4, three: 3 } },
+            tortoise: { par: 12, stars: { one: 15, two: 20, three: 25 } },
+            carrotClockEffectSeconds: 1
+          },
+          launcher: { x: 92, y: 270, vx: 290, vy: -52 },
+          goal: { x: 1020, y: 500, radius: 34 },
+          carrots: [
+            { x: 547, y: 94 },
+            { x: 840, y: 243 },
+            { x: 300, y: 230 }
+          ],
+          goldenHedgehog: { x: 542, y: 500 },
+          fixedObjects: [
+            { type: 'crate', x: 550, y: 307, width: 80, height: 317 }
+          ],
+          starter: [],
+          background: { type: 'preset', preset: 'meadow', image: '' },
+          availablePieces: { platform: 3, ramp: 2, spring: 1, pipe: 0 }
         }
       ]
     }
