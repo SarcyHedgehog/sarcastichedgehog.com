@@ -657,6 +657,48 @@
     }
   }
 
+  function applyBlackHoleGravity(step) {
+    for (const object of level().fixedObjects || []) {
+      if (object.type !== 'blackhole') continue;
+      const radius = Math.max(10, Number(object.radius) || 23);
+      const dx = object.x - ball.x, dy = object.y - ball.y;
+      const distance = Math.hypot(dx, dy) || .001;
+      if (distance <= radius + ball.radius * .7) {
+        ball.blackHoleCapture = {
+          x: object.x,
+          y: object.y,
+          elapsed: 0,
+          startDistance: Math.max(2, distance),
+          startAngle: Math.atan2(ball.y - object.y, ball.x - object.x),
+          startRadius: ball.radius
+        };
+        ball.vx = 0;
+        ball.vy = 0;
+        hideStallCountdown();
+        return true;
+      }
+      const influence = Math.max(radius * 5.5, Number(object.influenceRadius) || 0);
+      if (distance >= influence) continue;
+      const proximity = 1 - distance / influence;
+      const acceleration = 60 * proximity + 920 * proximity * proximity;
+      ball.vx += dx / distance * acceleration * step;
+      ball.vy += dy / distance * acceleration * step;
+    }
+    return false;
+  }
+
+  function updateBlackHoleCapture(dt) {
+    const capture = ball.blackHoleCapture;
+    capture.elapsed += dt;
+    const progress = Math.min(1, capture.elapsed / .58);
+    const distance = capture.startDistance * Math.pow(1 - progress, 1.55);
+    const angle = capture.startAngle + progress * Math.PI * 4.5;
+    ball.x = capture.x + Math.cos(angle) * distance;
+    ball.y = capture.y + Math.sin(angle) * distance;
+    ball.radius = Math.max(1.5, capture.startRadius * (1 - progress));
+    if (progress >= 1) finish(false, 'blackhole');
+  }
+
   function starsFor(time, track = mode) {
     const stars = level().scoring[track].stars;
     if (track === 'hare') return time <= stars.three ? 3 : time <= stars.two ? 2 : time <= stars.one ? 1 : 0;
@@ -715,6 +757,7 @@
       const failureMessages = {
         timeout: 'The Hare ran out of time. Build a quicker route.',
         stopped: 'The sphere came to rest. Give it another nudge with the course.',
+        blackhole: 'The sphere was swallowed by a black hole. Plot a safer route.',
         meadow: 'The sphere touched the meadow. Adjust and try again.'
       };
       setMessage('Not quite a journey', failureMessages[failureReason], 3500);
@@ -740,12 +783,18 @@
         ball.clockEffectRemaining = Math.max(0, ball.clockEffectRemaining - dt);
       } else ball.scoreAge += dt;
       clockEl.textContent = `${ball.scoreAge.toFixed(2)}s`;
+      if (ball.blackHoleCapture) {
+        updateBlackHoleCapture(dt);
+        updateClockEffect();
+        return;
+      }
       const steps = 3;
       for (let i = 0; i < steps; i++) {
         const step = dt / steps;
         ball.vy += 255 * step;
         ball.vx *= Math.pow(.998, step * 60);
         ball.x += ball.vx * step; ball.y += ball.vy * step;
+        if (applyBlackHoleGravity(step)) break;
         for (const piece of [...pieces()]) collidePiece(piece);
         collideFixedObjects();
         if (ball.x < ball.radius) { ball.x = ball.radius; ball.vx = Math.abs(ball.vx) * .82; }
@@ -757,6 +806,7 @@
           sound('bounce');
         }
       }
+      if (ball.blackHoleCapture) return;
       ball.trail.push({ x: ball.x, y: ball.y, life: 1 });
       if (ball.trail.length > 45) ball.trail.shift();
       ball.trail.forEach(p => p.life -= dt * 1.7);
@@ -909,6 +959,37 @@
       ctx.strokeStyle = 'rgba(255,255,255,.42)'; ctx.lineWidth = 5; ctx.stroke();
       ctx.restore();
     }
+    if (object.type === 'blackhole') {
+      const radius = Math.max(10, Number(object.radius) || 23);
+      const turn = performance.now() / 1000;
+      ctx.save();
+      ctx.translate(object.x, object.y);
+      ctx.shadowColor = 'rgba(35,5,74,.78)';
+      ctx.shadowBlur = 17;
+      const halo = ctx.createRadialGradient(0, 0, radius * .3, 0, 0, radius + 4);
+      halo.addColorStop(0, '#000');
+      halo.addColorStop(.52, '#05020a');
+      halo.addColorStop(.7, '#542070');
+      halo.addColorStop(.86, '#d36a28');
+      halo.addColorStop(1, 'rgba(28,10,55,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(0, 0, radius + 4, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.rotate(turn * 1.8);
+      for (const [ring, colour, start] of [
+        [radius + 2, '#f19b38', .2],
+        [radius - 2, '#b14dcc', 2.35],
+        [radius - 6, '#62c9dc', 4.25]
+      ]) {
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(0, 0, ring, start, start + Math.PI * 1.15); ctx.stroke();
+      }
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(0, 0, radius * .72, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
   }
 
   function drawPiece(piece) {
@@ -922,14 +1003,14 @@
       if (piece.id === selectedId) {
         ctx.strokeStyle = '#fff7d0'; ctx.lineWidth = 88; ctx.stroke();
       }
-      ctx.strokeStyle = piece.locked ? '#40586b' : '#205d38'; ctx.lineWidth = 82; ctx.stroke();
-      ctx.strokeStyle = piece.locked ? '#7898ad' : '#43a957'; ctx.lineWidth = 74; ctx.stroke();
+      ctx.strokeStyle = piece.locked ? '#35424d' : '#145e32'; ctx.lineWidth = 82; ctx.stroke();
+      ctx.strokeStyle = piece.locked ? '#8194a3' : '#3fc86b'; ctx.lineWidth = 74; ctx.stroke();
       ctx.shadowColor = 'transparent';
-      ctx.strokeStyle = piece.locked ? '#dce8ee' : '#d6eee0'; ctx.lineWidth = 54; ctx.stroke();
+      ctx.strokeStyle = piece.locked ? '#d4dde3' : '#e1ffe9'; ctx.lineWidth = 54; ctx.stroke();
       ctx.strokeStyle = 'rgba(255,255,255,.46)'; ctx.lineWidth = 4; ctx.stroke();
       const deflector = pipeWalls(piece)[0];
       ctx.beginPath(); ctx.moveTo(deflector[1].x, deflector[1].y); ctx.lineTo(deflector[2].x, deflector[2].y);
-      ctx.strokeStyle = piece.locked ? '#7898ad' : '#43a957'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.stroke();
+      ctx.strokeStyle = piece.locked ? '#8194a3' : '#3fc86b'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.stroke();
       ctx.restore();
       return;
     }
@@ -937,7 +1018,7 @@
     ctx.save();
     if (piece.tired) ctx.globalAlpha = .25;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = piece.id === selectedId ? '#fff7d0' : (piece.locked ? '#40586b' : '#244f48');
+    ctx.strokeStyle = piece.id === selectedId ? '#fff7d0' : (piece.locked ? '#35424d' : '#70451f');
     ctx.lineWidth = 15;
     ctx.shadowColor = 'rgba(16,48,41,.28)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 5;
     if (piece.type === 'spring') {
@@ -948,11 +1029,11 @@
         ctx.strokeStyle = '#fff7d0'; ctx.lineWidth = 30;
         ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
       }
-      ctx.strokeStyle = piece.locked ? '#40586b' : '#683d27'; ctx.lineWidth = 24;
+      ctx.strokeStyle = piece.locked ? '#35424d' : '#683d27'; ctx.lineWidth = 24;
       ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
-      ctx.strokeStyle = piece.locked ? '#7898ad' : '#e4a03c'; ctx.lineWidth = 17;
+      ctx.strokeStyle = piece.locked ? '#8194a3' : '#e4a03c'; ctx.lineWidth = 17;
       ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
-      ctx.strokeStyle = piece.locked ? '#dce8ee' : '#ffe29a'; ctx.lineWidth = 7;
+      ctx.strokeStyle = piece.locked ? '#d4dde3' : '#ffe29a'; ctx.lineWidth = 7;
       ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke();
       ctx.strokeStyle = piece.locked ? 'rgba(43,70,88,.72)' : 'rgba(104,61,39,.72)'; ctx.lineWidth = 2;
       for (let along = -len / 2 + 12; along < len / 2; along += 16) {
@@ -964,7 +1045,7 @@
       }
     } else { ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke(); }
     ctx.shadowColor='transparent';
-    if (piece.type !== 'spring') { ctx.strokeStyle = piece.locked ? '#a9bfd0' : '#7ca08d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke(); }
+    if (piece.type !== 'spring') { ctx.strokeStyle = piece.locked ? '#d4dde3' : '#f3bd58'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(s.ax,s.ay); ctx.lineTo(s.bx,s.by); ctx.stroke(); }
     const durability = pieceDurability(piece);
     if (piece.hits > durability / 2) { ctx.fillStyle='#b64d37'; ctx.beginPath(); ctx.arc(piece.x,piece.y,6+8*piece.hits/durability,0,Math.PI*2); ctx.fill(); }
     ctx.restore();

@@ -166,7 +166,7 @@
     if (ref.kind === 'launcher') return 'Drop-off launcher';
     if (ref.kind === 'hedgehog') return 'Golden Hedgehog';
     if (ref.kind === 'carrot') return `Carrot ${ref.index + 1}`;
-    if (ref.kind === 'fixed') return `${object?.type || 'Fixed item'} ${ref.index + 1}`;
+    if (ref.kind === 'fixed') return `${object?.type === 'blackhole' ? 'Black hole' : (object?.type || 'Fixed item')} ${ref.index + 1}`;
     if (ref.kind === 'starter') return `Starting ${object?.type || 'piece'} ${ref.index + 1}`;
     return 'Item';
   }
@@ -191,16 +191,19 @@
     document.getElementById('selected-x').value = Math.round(object.x);
     document.getElementById('selected-y').value = Math.round(object.y);
     const fixed = selected.kind === 'fixed';
+    const blackHole = fixed && object.type === 'blackhole';
     const starter = selected.kind === 'starter';
     const launcher = selected.kind === 'launcher';
-    document.getElementById('width-field').classList.toggle('hidden', !fixed);
-    document.getElementById('height-field').classList.toggle('hidden', !fixed);
+    document.getElementById('width-field').classList.toggle('hidden', !fixed || blackHole);
+    document.getElementById('height-field').classList.toggle('hidden', !fixed || blackHole);
+    document.getElementById('radius-field').classList.toggle('hidden', !blackHole);
     document.getElementById('angle-field').classList.toggle('hidden', !starter);
     document.getElementById('vx-field').classList.toggle('hidden', !launcher);
     document.getElementById('vy-field').classList.toggle('hidden', !launcher);
     document.getElementById('colour-field').classList.toggle('hidden', !(fixed && object.type === 'block'));
     document.getElementById('rotate-selected').classList.toggle('hidden', !starter);
-    if (fixed) { document.getElementById('selected-width').value = object.width; document.getElementById('selected-height').value = object.height; }
+    if (fixed && !blackHole) { document.getElementById('selected-width').value = object.width; document.getElementById('selected-height').value = object.height; }
+    if (blackHole) document.getElementById('selected-radius').value = object.radius || 23;
     if (starter) document.getElementById('selected-angle').value = Math.round((object.angle || 0) * 180 / Math.PI);
     if (launcher) { document.getElementById('selected-vx').value = object.vx; document.getElementById('selected-vy').value = object.vy; }
     if (fixed && object.type === 'block') document.getElementById('selected-colour').value = object.color || '#4f8f45';
@@ -210,7 +213,8 @@
     const object = selectedObject();
     if (!object) return;
     object.x = number('selected-x', object.x); object.y = number('selected-y', object.y);
-    if (selected.kind === 'fixed') { object.width = number('selected-width', object.width); object.height = number('selected-height', object.height); }
+    if (selected.kind === 'fixed' && object.type !== 'blackhole') { object.width = number('selected-width', object.width); object.height = number('selected-height', object.height); }
+    if (selected.kind === 'fixed' && object.type === 'blackhole') object.radius = Math.max(10, number('selected-radius', object.radius || 23));
     if (selected.kind === 'starter') {
       object.angle = number('selected-angle', 0) * Math.PI / 180;
       Object.assign(object, geometry.clampPiece(object));
@@ -237,10 +241,12 @@
       select({ kind:'carrot', index:level.carrots.length-1 });
       return;
     }
-    if (type === 'crate' || type === 'block') {
+    if (type === 'crate' || type === 'block' || type === 'blackhole') {
       level.fixedObjects.push(type === 'crate'
         ? { type, ...point, width:80, height:78 }
-        : { type, ...point, width:128, height:128, color:'#4f8f45' });
+        : type === 'blackhole'
+          ? { type, ...point, radius:23 }
+          : { type, ...point, width:128, height:128, color:'#4f8f45' });
       select({ kind:'fixed', index:level.fixedObjects.length-1 });
       return;
     }
@@ -265,6 +271,7 @@
     }
     for (let i=level.fixedObjects.length-1;i>=0;i--) {
       const item=level.fixedObjects[i];
+      if (item.type === 'blackhole' && Math.hypot(point.x-item.x,point.y-item.y) <= (item.radius || 23) + 12) return {kind:'fixed',index:i};
       if (Math.abs(point.x-item.x)<=item.width/2 && Math.abs(point.y-item.y)<=item.height/2) return {kind:'fixed',index:i};
     }
     for (let i=level.carrots.length-1;i>=0;i--) if (Math.hypot(point.x-level.carrots[i].x,point.y-level.carrots[i].y)<28) return {kind:'carrot',index:i};
@@ -320,6 +327,13 @@
   }
 
   function drawFixed(item) {
+    if(item.type==='blackhole'){
+      const radius=Math.max(10,item.radius||23), turn=performance.now()/1000;
+      ctx.save();ctx.translate(item.x,item.y);ctx.shadowColor='rgba(35,5,74,.75)';ctx.shadowBlur=15;
+      const halo=ctx.createRadialGradient(0,0,radius*.3,0,0,radius+4);halo.addColorStop(0,'#000');halo.addColorStop(.52,'#05020a');halo.addColorStop(.7,'#542070');halo.addColorStop(.86,'#d36a28');halo.addColorStop(1,'rgba(28,10,55,0)');ctx.fillStyle=halo;ctx.beginPath();ctx.arc(0,0,radius+4,0,Math.PI*2);ctx.fill();ctx.shadowColor='transparent';ctx.rotate(turn*1.8);
+      for(const [ring,colour,start] of [[radius+2,'#f19b38',.2],[radius-2,'#b14dcc',2.35],[radius-6,'#62c9dc',4.25]]){ctx.strokeStyle=colour;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(0,0,ring,start,start+Math.PI*1.15);ctx.stroke();}
+      ctx.fillStyle='#000';ctx.beginPath();ctx.arc(0,0,radius*.72,0,Math.PI*2);ctx.fill();ctx.restore();return;
+    }
     const left=item.x-item.width/2, top=item.y-item.height/2;
     ctx.save();ctx.lineWidth=7;ctx.strokeStyle=item.type==='crate'?'#543b28':'#255c39';ctx.fillStyle=item.type==='crate'?'#9b6538':(item.color||'#4f8f45');ctx.beginPath();ctx.roundRect(left,top,item.width,item.height,7);ctx.fill();ctx.stroke();
     if(item.type==='crate'){ctx.strokeStyle='#d6a260';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(left+10,top+10);ctx.lineTo(left+item.width-10,top+item.height-10);ctx.moveTo(left+item.width-10,top+10);ctx.lineTo(left+10,top+item.height-10);ctx.stroke();}ctx.restore();
@@ -327,8 +341,8 @@
 
   function drawPiece(piece) {
     ctx.save();ctx.translate(piece.x,piece.y);ctx.rotate(piece.angle||0);ctx.lineCap='round';ctx.lineJoin='round';
-    if(piece.type==='pipe'){ctx.strokeStyle='#205d38';ctx.lineWidth=82;ctx.beginPath();ctx.moveTo(-62,0);ctx.lineTo(0,0);ctx.lineTo(0,62);ctx.stroke();ctx.strokeStyle='#d6eee0';ctx.lineWidth=54;ctx.stroke();}
-    else {const length=piece.type==='platform'?155:piece.type==='ramp'?130:105;ctx.strokeStyle=piece.type==='spring'?'#683d27':'#173b3a';ctx.lineWidth=piece.type==='spring'?24:9;ctx.beginPath();ctx.moveTo(-length/2,0);ctx.lineTo(length/2,0);ctx.stroke();if(piece.type==='spring'){ctx.strokeStyle='#e4a03c';ctx.lineWidth=17;ctx.stroke();ctx.strokeStyle='#ffe29a';ctx.lineWidth=7;ctx.stroke();ctx.strokeStyle='rgba(104,61,39,.72)';ctx.lineWidth=2;for(let x=-length/2+12;x<length/2;x+=16){ctx.beginPath();ctx.moveTo(x,-8);ctx.lineTo(x,8);ctx.stroke();}}}
+    if(piece.type==='pipe'){ctx.strokeStyle='#35424d';ctx.lineWidth=82;ctx.beginPath();ctx.moveTo(-62,0);ctx.lineTo(0,0);ctx.lineTo(0,62);ctx.stroke();ctx.strokeStyle='#d4dde3';ctx.lineWidth=54;ctx.stroke();}
+    else {const length=piece.type==='platform'?155:piece.type==='ramp'?130:105;ctx.strokeStyle='#35424d';ctx.lineWidth=piece.type==='spring'?24:12;ctx.beginPath();ctx.moveTo(-length/2,0);ctx.lineTo(length/2,0);ctx.stroke();ctx.strokeStyle='#8194a3';ctx.lineWidth=piece.type==='spring'?17:7;ctx.stroke();ctx.strokeStyle='#d4dde3';ctx.lineWidth=piece.type==='spring'?7:3;ctx.stroke();if(piece.type==='spring'){ctx.strokeStyle='rgba(43,58,70,.75)';ctx.lineWidth=2;for(let x=-length/2+12;x<length/2;x+=16){ctx.beginPath();ctx.moveTo(x,-8);ctx.lineTo(x,8);ctx.stroke();}}}
     ctx.restore();
   }
 
@@ -339,7 +353,7 @@
     if(level.goldenHedgehog)ctx.fillText('🦔',level.goldenHedgehog.x,level.goldenHedgehog.y);
     ctx.strokeStyle='#173b3a';ctx.lineWidth=8;ctx.beginPath();ctx.arc(level.goal.x,level.goal.y,level.goal.radius||34,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#f4e6c1';ctx.beginPath();ctx.arc(level.goal.x,level.goal.y,25,0,Math.PI*2);ctx.fill();ctx.fillStyle='#173b3a';ctx.font='800 11px system-ui';ctx.fillText('GOAL',level.goal.x,level.goal.y+4);
     ctx.save();ctx.translate(level.launcher.x-16,level.launcher.y+33);ctx.fillStyle='#713e27';ctx.fillRect(-28,-18,55,72);ctx.fillStyle='#f3ca52';ctx.fillRect(-18,-8,35,50);ctx.strokeStyle='#513121';ctx.lineWidth=11;ctx.beginPath();ctx.moveTo(0,-4);ctx.lineTo(18,-50);ctx.stroke();ctx.restore();
-    const object=selectedObject();if(object){ctx.strokeStyle='#f3ca52';ctx.lineWidth=3;ctx.setLineDash([8,5]);ctx.beginPath();ctx.arc(object.x,object.y,selected.kind==='fixed'?Math.max(object.width,object.height)/2+10:50,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
+    const object=selectedObject();if(object){ctx.strokeStyle='#f3ca52';ctx.lineWidth=3;ctx.setLineDash([8,5]);const selectionRadius=selected.kind==='fixed'?(object.type==='blackhole'?(object.radius||23)+12:Math.max(object.width,object.height)/2+10):50;ctx.beginPath();ctx.arc(object.x,object.y,selectionRadius,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
     ctx.textAlign='left';
   }
 
@@ -360,7 +374,7 @@
     tool=button.dataset.tool;document.querySelectorAll('#palette button').forEach(item=>item.classList.toggle('active',item===button));statusEl.textContent=tool==='select'?'Select or drag an item':`Click the board to place: ${button.textContent.trim()}`;
   }));
   ids.forEach(id=>document.getElementById(id).addEventListener('input',readForm));
-  ['selected-x','selected-y','selected-width','selected-height','selected-angle','selected-vx','selected-vy','selected-colour'].forEach(id=>document.getElementById(id).addEventListener('input',applySelectionFields));
+  ['selected-x','selected-y','selected-width','selected-height','selected-radius','selected-angle','selected-vx','selected-vy','selected-colour'].forEach(id=>document.getElementById(id).addEventListener('input',applySelectionFields));
   document.getElementById('delete-selected').addEventListener('click',deleteSelection);
   document.getElementById('rotate-selected').addEventListener('click',()=>{const object=selectedObject();if(!object||selected.kind!=='starter')return;object.angle=(object.angle||0)+(object.type==='pipe'?Math.PI/2:Math.PI/4);Object.assign(object,geometry.clampPiece(object));updateSelectionPanel();draw();});
   picker.addEventListener('change',()=>loadEntry(sourceWorld.levels[Number(picker.value)],Number(picker.value)));
