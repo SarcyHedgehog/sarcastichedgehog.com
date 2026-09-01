@@ -6,6 +6,7 @@
   window.HareTortoiseWorlds = [
     {
       id: 'green-meadows',
+      number: 1,
       name: 'Green Meadows',
       subtitle: 'A pleasant place to make physics unnecessarily complicated.',
       theme: 'meadow',

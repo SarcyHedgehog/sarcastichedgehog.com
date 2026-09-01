@@ -137,7 +137,8 @@
     document.getElementById(`${category}-${track}-board`).innerHTML = levels.map((level, index) => {
       const winner = winners.get(level.id);
       const levelWorld = worldForLevel(level.id);
-      return `<tr><th scope="row">${levelWorld.number}.${level.number}. ${escapeHtml(level.name)}</th><td>${winner ? `<i class="player-number" title="${escapeHtml(winner.name)}">${winner.playerNumber}</i>` : '—'}</td><td>${winner ? scoreLabel(winner.time) : '—'}</td></tr>`;
+      const worldNumber = levelWorld.number || worlds.indexOf(levelWorld) + 1;
+      return `<tr><th scope="row">${worldNumber}.${level.number}. ${escapeHtml(level.name)}</th><td>${winner ? `<i class="player-number" title="${escapeHtml(winner.name)}">${winner.playerNumber}</i>` : '—'}</td><td>${winner ? scoreLabel(winner.time) : '—'}</td></tr>`;
     }).join('');
   }
 
