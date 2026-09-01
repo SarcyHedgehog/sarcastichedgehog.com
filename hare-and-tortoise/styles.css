@@ -50,6 +50,12 @@ h1 i { color: var(--gold); font-weight: 400; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
 .panel-heading h3, .group-panel h3 { font-size: 23px; }
 .progress-map { display: grid; gap: 10px; }
+.trail-world { display: grid; gap: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.018); }
+.trail-world.space { background: radial-gradient(circle at 76% 18%, rgba(86,65,158,.16), transparent 42%), #070c1c; }
+.trail-world-title { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 9px; padding: 1px 5px 3px; }
+.trail-world-title span { color: var(--gold); font-size: 8px; font-weight: 900; letter-spacing: .16em; }
+.trail-world-title strong { font: 700 16px Georgia, serif; }
+.trail-world-title small { color: var(--muted); font-size: 9px; }
 .trail-row { display: grid; grid-template-columns: 142px minmax(0,1fr); align-items: stretch; overflow: hidden; border: 1px solid var(--line); border-radius: 15px; background: rgba(255,255,255,.025); }
 .trail-row > header { display: flex; align-items: center; gap: 10px; padding: 13px 15px; border-right: 1px solid var(--line); }
 .trail-row.hare > header { background: rgba(236,140,60,.12); box-shadow: inset 4px 0 var(--hare); }

@@ -3,7 +3,8 @@
 
   const API_URL = 'https://www.ariolasoft.com/hare-and-tortoise-api/index.php';
   const storage = window.HareTortoiseStorage;
-  const levels = window.HareTortoiseWorlds[0].levels;
+  const worlds = window.HareTortoiseWorlds;
+  const levels = worlds.flatMap(world => world.levels);
   const lobbyView = document.getElementById('lobby-view');
   const gameView = document.getElementById('game-view');
   const progressMap = document.getElementById('progress-map');
@@ -42,8 +43,18 @@
     return `${'★'.repeat(count)}${'☆'.repeat(3 - count)}`;
   }
 
-  function isUnlocked(index, track) {
-    return index === 0 || Boolean(progress?.[levels[index - 1].id]?.[track]?.parBeaten);
+  function worldForLevel(levelId) {
+    return worlds.find(entry => entry.levels.some(level => level.id === levelId)) || worlds[0];
+  }
+
+  function isUnlocked(entry, track) {
+    const targetWorld = worldForLevel(entry.id);
+    const worldIndex = worlds.indexOf(targetWorld);
+    const levelIndex = targetWorld.levels.findIndex(level => level.id === entry.id);
+    if(levelIndex > 0) return Boolean(progress?.[targetWorld.levels[levelIndex - 1].id]?.[track]?.parBeaten);
+    if(worldIndex === 0) return true;
+    const previousWorld = worlds[worldIndex - 1];
+    return Boolean(progress?.[previousWorld.levels.at(-1).id]?.[track]?.parBeaten);
   }
 
   function completedCount() {
@@ -68,27 +79,37 @@
   function renderProgress() {
     document.getElementById('progress-summary').textContent = `${completedCount()} / ${levels.length * 2} cleared`;
     progressMap.replaceChildren();
-    for (const track of ['hare', 'tortoise']) {
-      const row = document.createElement('section');
-      row.className = `trail-row ${track}`;
-      const heading = document.createElement('header');
-      heading.innerHTML = `<span>${track === 'hare' ? '🐇' : '🐢'}</span><div><strong>The ${track === 'hare' ? 'Hare' : 'Tortoise'}</strong><small>${track === 'hare' ? 'Quick trail' : 'Scenic trail'}</small></div>`;
-      const route = document.createElement('div');
-      route.className = 'trail-levels';
-      levels.forEach((entry, index) => {
-        const unlocked = isUnlocked(index, track);
-        const record = progress?.[entry.id]?.[track];
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.disabled = !unlocked;
-        button.dataset.track = track;
-        button.dataset.level = entry.id;
-        button.className = `trail-stop${record?.parBeaten ? ' complete' : ''}`;
-        button.innerHTML = `<b>${unlocked ? index + 1 : '🔒'}</b><span>${escapeHtml(entry.name)}</span><small>${unlocked ? personalResult(record) : `Beat level ${index}`}</small>`;
-        route.append(button);
-      });
-      row.append(heading, route);
-      progressMap.append(row);
+    for (const [worldIndex, world] of worlds.entries()) {
+      const group = document.createElement('section');
+      group.className = `trail-world${world.theme === 'space' ? ' space' : ''}`;
+      const worldHeading = document.createElement('header');
+      worldHeading.className = 'trail-world-title';
+      worldHeading.innerHTML = `<span>WORLD ${world.number || worldIndex + 1}</span><strong>${escapeHtml(world.name)}</strong><small>${escapeHtml(world.subtitle || '')}</small>`;
+      group.append(worldHeading);
+      for (const track of ['hare', 'tortoise']) {
+        const row = document.createElement('div');
+        row.className = `trail-row ${track}`;
+        const heading = document.createElement('header');
+        heading.innerHTML = `<span>${track === 'hare' ? '🐇' : '🐢'}</span><div><strong>The ${track === 'hare' ? 'Hare' : 'Tortoise'}</strong><small>${track === 'hare' ? 'Quick trail' : 'Scenic trail'}</small></div>`;
+        const route = document.createElement('div');
+        route.className = 'trail-levels';
+        world.levels.forEach((entry, index) => {
+          const unlocked = isUnlocked(entry, track);
+          const record = progress?.[entry.id]?.[track];
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.disabled = !unlocked;
+          button.dataset.track = track;
+          button.dataset.level = entry.id;
+          button.className = `trail-stop${record?.parBeaten ? ' complete' : ''}`;
+          const lockedMessage = index > 0 ? `Beat level ${index}` : `Finish ${worlds[worldIndex - 1]?.name || 'the previous world'}`;
+          button.innerHTML = `<b>${unlocked ? entry.number || index + 1 : '🔒'}</b><span>${escapeHtml(entry.name)}</span><small>${unlocked ? personalResult(record) : escapeHtml(lockedMessage)}</small>`;
+          route.append(button);
+        });
+        row.append(heading, route);
+        group.append(row);
+      }
+      progressMap.append(group);
     }
   }
 
@@ -115,7 +136,8 @@
     const winners = new Map((data.records?.[category]?.[track] || []).map(entry => [entry.levelId, entry]));
     document.getElementById(`${category}-${track}-board`).innerHTML = levels.map((level, index) => {
       const winner = winners.get(level.id);
-      return `<tr><th scope="row">${index + 1}. ${escapeHtml(level.name)}</th><td>${winner ? `<i class="player-number" title="${escapeHtml(winner.name)}">${winner.playerNumber}</i>` : '—'}</td><td>${winner ? scoreLabel(winner.time) : '—'}</td></tr>`;
+      const levelWorld = worldForLevel(level.id);
+      return `<tr><th scope="row">${levelWorld.number}.${level.number}. ${escapeHtml(level.name)}</th><td>${winner ? `<i class="player-number" title="${escapeHtml(winner.name)}">${winner.playerNumber}</i>` : '—'}</td><td>${winner ? scoreLabel(winner.time) : '—'}</td></tr>`;
     }).join('');
   }
 

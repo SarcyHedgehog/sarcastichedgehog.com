@@ -9,12 +9,14 @@
   const dialog = document.getElementById('json-dialog');
   const jsonText = document.getElementById('json-text');
   const geometry = window.HareTortoiseGeometry;
-  const sourceWorld = window.HareTortoiseWorlds[0];
+  const sourceWorlds = window.HareTortoiseWorlds;
+  let sourceWorld = sourceWorlds[0];
   const DRAFT_KEY = 'hare-and-tortoise:level-editor:v1';
   const clone = value => JSON.parse(JSON.stringify(value));
 
   let world = clone(sourceWorld);
   world.number ||= 1;
+  let currentSourceWorldIndex = 0;
   let currentSourceIndex = 0;
   let level = prepareLevel(sourceWorld.levels[0]);
   let tool = 'select';
@@ -40,7 +42,7 @@
     const entry = clone(value);
     entry.revision ||= 1;
     entry.number ||= 1;
-    entry.background ||= { type: 'preset', preset: sourceWorld.theme || 'meadow', image: '' };
+    entry.background ||= { type: 'preset', preset: world?.theme || sourceWorld.theme || 'meadow', image: '' };
     entry.goal ||= { x: 1020, y: 500, radius: 34 };
     entry.goal.radius ||= 34;
     entry.launcher ||= { x: 92, y: 270, vx: 290, vy: -52 };
@@ -69,13 +71,18 @@
 
   function fillPicker() {
     picker.innerHTML = '';
-    sourceWorld.levels.forEach((entry, index) => {
-      const option = document.createElement('option');
-      option.value = index;
-      option.textContent = `${entry.number || index + 1} · ${entry.name}`;
-      picker.append(option);
+    sourceWorlds.forEach((candidateWorld, worldIndex) => {
+      const group = document.createElement('optgroup');
+      group.label = `${candidateWorld.number || worldIndex + 1} · ${candidateWorld.name}`;
+      candidateWorld.levels.forEach((entry, index) => {
+        const option = document.createElement('option');
+        option.value = `${worldIndex}:${index}`;
+        option.textContent = `${candidateWorld.number || worldIndex + 1}.${entry.number || index + 1} · ${entry.name}`;
+        group.append(option);
+      });
+      picker.append(group);
     });
-    picker.value = String(Math.min(currentSourceIndex, sourceWorld.levels.length - 1));
+    picker.value = `${currentSourceWorldIndex}:${Math.min(currentSourceIndex, sourceWorld.levels.length - 1)}`;
   }
 
   function writeForm() {
@@ -304,25 +311,34 @@
     }
   }
 
+  function drawSpaceBackground() {
+    const sky=ctx.createLinearGradient(0,0,0,620);sky.addColorStop(0,'#010106');sky.addColorStop(.62,'#070b20');sky.addColorStop(1,'#11162c');ctx.fillStyle=sky;ctx.fillRect(0,0,1100,620);
+    const nebula=ctx.createRadialGradient(800,250,20,800,250,390);nebula.addColorStop(0,'rgba(87,55,155,.20)');nebula.addColorStop(.45,'rgba(34,80,142,.10)');nebula.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=nebula;ctx.fillRect(0,0,1100,560);
+    for(let i=0;i<150;i++){const x=(i*173+47)%1094,y=45+((i*97+31)%505),radius=i%19===0?2.1:i%7===0?1.35:.75;ctx.fillStyle=i%13===0?'#b8d8ff':i%17===0?'#ffe7aa':'rgba(255,255,255,.86)';ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();}
+    ctx.fillStyle='#090d1d';ctx.fillRect(0,560,1100,60);
+  }
+
   function drawBackground() {
     const bg=level.background || {type:'preset',preset:'meadow'};
+    const preset=bg.type==='preset'?(bg.preset||world.theme||'meadow'):(bg.fallback||world.theme||'meadow');
     if (bg.type==='image' && bg.image) {
       let image=imageCache.get(bg.image);
       if (!image) { image=new Image(); image.onload=draw; image.src=bg.image; imageCache.set(bg.image,image); }
-      if (image.complete && image.naturalWidth) { ctx.drawImage(image,0,0,1100,620); drawGridAndRoof(); return; }
+      if (image.complete && image.naturalWidth) { ctx.drawImage(image,0,0,1100,620); drawGridAndRoof(preset); return; }
     }
+    if(preset==='space'){drawSpaceBackground();drawGridAndRoof('space');return;}
     const sky=ctx.createLinearGradient(0,0,0,560); sky.addColorStop(0,'#a8d9dd'); sky.addColorStop(.68,'#d9ebc7'); sky.addColorStop(1,'#8fc071');
     ctx.fillStyle=sky; ctx.fillRect(0,0,1100,620); ctx.fillStyle='rgba(255,249,225,.7)';
     for (const cloud of [[150,100,1],[520,74,.75],[880,135,1.15]]) { ctx.beginPath(); ctx.arc(cloud[0],cloud[1],30*cloud[2],0,Math.PI*2); ctx.arc(cloud[0]+35*cloud[2],cloud[1]-12,42*cloud[2],0,Math.PI*2); ctx.arc(cloud[0]+78*cloud[2],cloud[1],28*cloud[2],0,Math.PI*2); ctx.fill(); }
     ctx.fillStyle='#76aa64'; ctx.beginPath(); ctx.moveTo(0,470); ctx.quadraticCurveTo(180,360,350,470); ctx.quadraticCurveTo(540,340,720,470); ctx.quadraticCurveTo(920,345,1100,455); ctx.lineTo(1100,620); ctx.lineTo(0,620); ctx.fill();
-    ctx.fillStyle='#426f4d'; ctx.fillRect(0,560,1100,60); drawGridAndRoof();
+    ctx.fillStyle='#426f4d'; ctx.fillRect(0,560,1100,60); drawGridAndRoof('meadow');
   }
 
-  function drawGridAndRoof() {
-    ctx.strokeStyle='rgba(27,69,62,.14)'; ctx.lineWidth=1;
+  function drawGridAndRoof(theme='meadow') {
+    ctx.strokeStyle=theme==='space'?'rgba(151,186,255,.10)':'rgba(27,69,62,.14)'; ctx.lineWidth=1;
     for(let x=25;x<1100;x+=50){ctx.beginPath();ctx.moveTo(x,80);ctx.lineTo(x,560);ctx.stroke();}
     for(let y=90;y<560;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(1100,y);ctx.stroke();}
-    ctx.fillStyle='#173f3b';ctx.fillRect(0,8,1100,27);ctx.fillStyle='#f3ca52';
+    ctx.fillStyle=theme==='space'?'#111a36':'#173f3b';ctx.fillRect(0,8,1100,27);ctx.fillStyle=theme==='space'?'#86b9ff':'#f3ca52';
     for(let x=34;x<1100;x+=86){ctx.beginPath();ctx.arc(x,21,3,0,Math.PI*2);ctx.fill();}
   }
 
@@ -351,7 +367,7 @@
     level.fixedObjects.forEach(drawFixed); level.starter.forEach(drawPiece);
     ctx.font='27px serif';ctx.textAlign='center';level.carrots.forEach(item=>ctx.fillText('🥕',item.x,item.y));
     if(level.goldenHedgehog)ctx.fillText('🦔',level.goldenHedgehog.x,level.goldenHedgehog.y);
-    ctx.strokeStyle='#173b3a';ctx.lineWidth=8;ctx.beginPath();ctx.arc(level.goal.x,level.goal.y,level.goal.radius||34,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#f4e6c1';ctx.beginPath();ctx.arc(level.goal.x,level.goal.y,25,0,Math.PI*2);ctx.fill();ctx.fillStyle='#173b3a';ctx.font='800 11px system-ui';ctx.fillText('GOAL',level.goal.x,level.goal.y+4);
+    const spaceTheme=(level.background?.preset||world.theme)==='space';ctx.strokeStyle=spaceTheme?'#8cb8d5':'#173b3a';ctx.lineWidth=8;ctx.beginPath();ctx.arc(level.goal.x,level.goal.y,level.goal.radius||34,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#f4e6c1';ctx.beginPath();ctx.arc(level.goal.x,level.goal.y,25,0,Math.PI*2);ctx.fill();ctx.fillStyle='#173b3a';ctx.font='800 11px system-ui';ctx.fillText('GOAL',level.goal.x,level.goal.y+4);
     ctx.save();ctx.translate(level.launcher.x-16,level.launcher.y+33);ctx.fillStyle='#713e27';ctx.fillRect(-28,-18,55,72);ctx.fillStyle='#f3ca52';ctx.fillRect(-18,-8,35,50);ctx.strokeStyle='#513121';ctx.lineWidth=11;ctx.beginPath();ctx.moveTo(0,-4);ctx.lineTo(18,-50);ctx.stroke();ctx.restore();
     const object=selectedObject();if(object){ctx.strokeStyle='#f3ca52';ctx.lineWidth=3;ctx.setLineDash([8,5]);const selectionRadius=selected.kind==='fixed'?(object.type==='blackhole'?(object.radius||23)+12:Math.max(object.width,object.height)/2+10):50;ctx.beginPath();ctx.arc(object.x,object.y,selectionRadius,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
     ctx.textAlign='left';
@@ -377,7 +393,11 @@
   ['selected-x','selected-y','selected-width','selected-height','selected-radius','selected-angle','selected-vx','selected-vy','selected-colour'].forEach(id=>document.getElementById(id).addEventListener('input',applySelectionFields));
   document.getElementById('delete-selected').addEventListener('click',deleteSelection);
   document.getElementById('rotate-selected').addEventListener('click',()=>{const object=selectedObject();if(!object||selected.kind!=='starter')return;object.angle=(object.angle||0)+(object.type==='pipe'?Math.PI/2:Math.PI/4);Object.assign(object,geometry.clampPiece(object));updateSelectionPanel();draw();});
-  picker.addEventListener('change',()=>loadEntry(sourceWorld.levels[Number(picker.value)],Number(picker.value)));
+  picker.addEventListener('change',()=>{
+    const [worldIndex,levelIndex]=picker.value.split(':').map(Number);
+    currentSourceWorldIndex=worldIndex;sourceWorld=sourceWorlds[worldIndex];world=clone(sourceWorld);
+    loadEntry(sourceWorld.levels[levelIndex],levelIndex);
+  });
   document.getElementById('new-level').addEventListener('click',()=>{
     const number = sourceWorld.levels.length + 1;
     const prefix = sourceWorld.levels[0]?.id?.match(/^(.*?)-\d+$/)?.[1] || world.id || 'world';
@@ -397,10 +417,18 @@
   document.getElementById('import-level').addEventListener('click',()=>openJson('import'));
   document.getElementById('copy-json').addEventListener('click',async()=>{await navigator.clipboard.writeText(jsonText.value);statusEl.textContent='Level JSON copied';});
   document.getElementById('download-json').addEventListener('click',()=>{const blob=new Blob([jsonText.value],{type:'application/json'}),link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`${level.id||'level'}.json`;link.click();URL.revokeObjectURL(link.href);});
-  document.getElementById('apply-json').addEventListener('click',()=>{try{const parsed=JSON.parse(jsonText.value);if(parsed.world)world={...world,...parsed.world};loadEntry(parsed.level||parsed,-1);dialog.close();statusEl.textContent='Imported level loaded';}catch(error){statusEl.textContent=`Import failed: ${error.message}`;}});
+  function applyPackage(parsed) {
+    if(parsed.world){
+      world={...world,...parsed.world};
+      const matched=sourceWorlds.findIndex(entry=>entry.id===world.id);
+      if(matched>=0){currentSourceWorldIndex=matched;sourceWorld=sourceWorlds[matched];}
+    }
+    loadEntry(parsed.level||parsed,-1);
+  }
+  document.getElementById('apply-json').addEventListener('click',()=>{try{applyPackage(JSON.parse(jsonText.value));dialog.close();statusEl.textContent='Imported level loaded';}catch(error){statusEl.textContent=`Import failed: ${error.message}`;}});
 
   const savedDraft=localStorage.getItem(DRAFT_KEY);
   fillPicker();
-  if(savedDraft){try{const parsed=JSON.parse(savedDraft);if(parsed.world)world={...world,...parsed.world};loadEntry(parsed.level||parsed,-1);statusEl.textContent='Recovered saved editor draft';}catch{loadEntry(sourceWorld.levels[0],0);}}
+  if(savedDraft){try{applyPackage(JSON.parse(savedDraft));statusEl.textContent='Recovered saved editor draft';}catch{loadEntry(sourceWorld.levels[0],0);}}
   else loadEntry(sourceWorld.levels[0],0);
 })();

@@ -19,8 +19,9 @@
   const geometry = window.HareTortoiseGeometry;
   const storage = window.HareTortoiseStorage;
   const worlds = window.HareTortoiseWorlds;
-  const world = worlds[0];
-  const levels = world.levels;
+  const allLevels = worlds.flatMap(entry => entry.levels);
+  let world = worlds[0];
+  let levels = world.levels;
   const PHYSICS_VERSION = 2;
   const suppliedConfig = window.HareTortoiseConfig || {};
   const GAME_CONFIG = Object.freeze({
@@ -59,6 +60,7 @@
   let simulationAccumulator = 0;
   const backgroundImageCache = new Map();
   let placementGridLayer = null;
+  let placementGridTheme = '';
 
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
   function starterPieces(entry) {
@@ -66,16 +68,16 @@
     if (Array.isArray(entry?.starter?.shared)) return entry.starter.shared;
     return entry?.starter?.hare || entry?.starter?.tortoise || [];
   }
-  let currentLevelId = levels[0].id;
-  let limits = pieceLimits(levels[0].id, mode);
-  const courses = Object.fromEntries(levels.map(entry => {
+  let currentLevelId = allLevels[0].id;
+  let limits = pieceLimits(allLevels[0].id, mode);
+  const courses = Object.fromEntries(allLevels.map(entry => {
     const starter = starterPieces(entry);
     return [entry.id, { hare: freshPieces(starter, true), tortoise: freshPieces(starter, true) }];
   }));
-  const progress = Object.fromEntries(levels.map(entry => [entry.id, {
+  const progress = Object.fromEntries(allLevels.map(entry => [entry.id, {
     hare: freshRecord(), tortoise: freshRecord()
   }]));
-  const lastLevelByTrack = { hare: levels[0].id, tortoise: levels[0].id };
+  const lastLevelByTrack = { hare: allLevels[0].id, tortoise: allLevels[0].id };
 
   function freshRecord() { return { overall: null, standard: null, golden: null, stars: 0, parBeaten: false }; }
   function freshPieces(value, locked = false) {
@@ -85,7 +87,17 @@
       return result;
     });
   }
-  function level(id = currentLevelId) { return levels.find(entry => entry.id === id) || levels[0]; }
+  function level(id = currentLevelId) { return allLevels.find(entry => entry.id === id) || allLevels[0]; }
+  function worldForLevel(levelId) { return worlds.find(entry => entry.levels.some(candidate => candidate.id === levelId)) || worlds[0]; }
+  function setWorld(nextWorld) {
+    world = nextWorld || worlds[0];
+    levels = world.levels;
+    document.getElementById('world-name').textContent = world.name;
+    document.getElementById('world-subtitle').textContent = world.subtitle || 'Beat par to open the next level.';
+    document.querySelector('.level-strip')?.setAttribute('aria-label', `${world.name} levels`);
+    placementGridLayer = null;
+    placementGridTheme = '';
+  }
   function pieces(track = mode, levelId = currentLevelId) { return courses[levelId][track]; }
   function record(track = mode, levelId = currentLevelId) { return progress[levelId][track]; }
   function nextId() { return Math.max(0, ...pieces().map(p => p.id)) + 1; }
@@ -411,8 +423,14 @@
   });
 
   function isLevelUnlocked(levelId, track = mode) {
-    const index = levels.findIndex(entry => entry.id === levelId);
-    return index <= 0 || progress[levels[index - 1].id][track].parBeaten;
+    const targetWorld = worldForLevel(levelId);
+    const worldIndex = worlds.indexOf(targetWorld);
+    const index = targetWorld.levels.findIndex(entry => entry.id === levelId);
+    if (index > 0) return progress[targetWorld.levels[index - 1].id][track].parBeaten;
+    if (worldIndex <= 0) return true;
+    const previousWorld = worlds[worldIndex - 1];
+    const previousFinale = previousWorld.levels[previousWorld.levels.length - 1];
+    return Boolean(progress[previousFinale.id][track].parBeaten);
   }
 
   function highestUnlocked(track = mode) {
@@ -449,20 +467,24 @@
       levelListEl.append(button);
     });
 
-    if (levels.length >= 8 && currentIndex >= levels.length - 1) {
+    if (currentIndex >= levels.length - 1) {
       const nextWorld = worlds[worlds.indexOf(world) + 1];
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'level-button next-world';
-      button.disabled = true;
-      button.setAttribute('aria-label', nextWorld ? `New World: ${nextWorld.name}. Locked` : 'New World. Coming soon');
-      button.innerHTML = `<span>→</span><strong>New World</strong><small>${nextWorld ? `🔒 ${nextWorld.name}` : 'Coming soon'}</small>`;
+      const unlocked = Boolean(nextWorld && isLevelUnlocked(nextWorld.levels[0].id));
+      button.disabled = !unlocked;
+      button.setAttribute('aria-label', nextWorld ? `New World: ${nextWorld.name}. ${unlocked ? 'Open' : 'Locked'}` : 'New World. Coming soon');
+      button.innerHTML = `<span>→</span><strong>New World</strong><small>${nextWorld ? `${unlocked ? '' : '🔒 '}${nextWorld.name}` : 'Coming soon'}</small>`;
+      if (unlocked) button.addEventListener('click', () => selectLevel(nextWorld.levels[0].id));
       levelListEl.append(button);
     }
   }
 
   function selectLevel(levelId, announce = true) {
     if (!isLevelUnlocked(levelId)) return false;
+    const targetWorld = worldForLevel(levelId);
+    if (targetWorld !== world) setWorld(targetWorld);
     currentLevelId = levelId;
     lastLevelByTrack[mode] = levelId;
     limits = pieceLimits(currentLevelId, mode);
@@ -478,7 +500,14 @@
   function activateMode(track, announce = true) {
     mode = validTrack(track);
     const preferred = lastLevelByTrack[mode];
-    currentLevelId = isLevelUnlocked(preferred, mode) ? preferred : highestUnlocked(mode);
+    if (isLevelUnlocked(preferred, mode)) {
+      setWorld(worldForLevel(preferred));
+      currentLevelId = preferred;
+    } else {
+      const accessibleWorld = [...worlds].reverse().find(entry => isLevelUnlocked(entry.levels[0].id, mode)) || worlds[0];
+      setWorld(accessibleWorld);
+      currentLevelId = highestUnlocked(mode);
+    }
     limits = pieceLimits(currentLevelId, mode);
     document.querySelectorAll('.mode').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
     objectiveEl.textContent = mode === 'hare' ? 'FASTEST SUCCESSFUL RUN' : 'LONGEST VALID JOURNEY';
@@ -738,7 +767,9 @@
       if (beatsPar(time)) result.parBeaten = true;
       const levelIndex = levels.findIndex(entry => entry.id === currentLevelId);
       const next = levels[levelIndex + 1];
-      const unlockText = newlyBeatPar && next ? ` · ${next.name} unlocked!` : '';
+      const nextWorld = worlds[worlds.indexOf(world) + 1];
+      const unlockTarget = next || nextWorld?.levels[0];
+      const unlockText = newlyBeatPar && unlockTarget ? ` · ${next ? next.name : nextWorld.name} unlocked!` : '';
       setMessage(`${'★'.repeat(stars)}${'☆'.repeat(3-stars)} Goal reached in ${time.toFixed(2)}s`, `${collected}/${carrots.length} carrots${hedgehog?.got ? ' · Golden Hedgehog found!' : ''}${unlockText}`, 4600);
       celebration = Array.from({ length: 50 }, (_, index) => {
         const spread = ((index * 37) % 101) / 100 - .5;
@@ -758,6 +789,7 @@
         timeout: 'The Hare ran out of time. Build a quicker route.',
         stopped: 'The sphere came to rest. Give it another nudge with the course.',
         blackhole: 'The sphere was swallowed by a black hole. Plot a safer route.',
+        space: 'The sphere drifted beyond the safe play area. Adjust and try again.',
         meadow: 'The sphere touched the meadow. Adjust and try again.'
       };
       setMessage('Not quite a journey', failureMessages[failureReason], 3500);
@@ -819,7 +851,7 @@
       if (hedgehog && !hedgehog.got && Math.hypot(ball.x-hedgehog.x, ball.y-hedgehog.y) < 34) { hedgehog.got = true; sound('collect'); }
       const goal = level().goal;
       if (ballTouchesGoal(goal)) finish(true);
-      else if (ball.y > 590) finish(false, 'meadow');
+      else if (ball.y > 590) finish(false, (level().background?.preset || world.theme) === 'space' ? 'space' : 'meadow');
       else if (mode === 'hare' && ball.scoreAge >= 25) finish(false, 'timeout');
       else updateStallCountdown(dt);
     }
@@ -831,8 +863,49 @@
     ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
   }
 
+  function drawSpaceBackground() {
+    const space = ctx.createLinearGradient(0, 0, 0, 620);
+    space.addColorStop(0, '#010107');
+    space.addColorStop(.58, '#07091c');
+    space.addColorStop(1, '#11152a');
+    ctx.fillStyle = space;
+    ctx.fillRect(0, 0, 1100, 620);
+
+    const nebula = ctx.createRadialGradient(790, 180, 10, 790, 180, 260);
+    nebula.addColorStop(0, 'rgba(91,53,150,.2)');
+    nebula.addColorStop(.5, 'rgba(37,55,132,.09)');
+    nebula.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = nebula;
+    ctx.fillRect(480, 0, 620, 470);
+
+    const twinkle = performance.now() / 900;
+    for (let index = 0; index < 125; index++) {
+      const x = (index * 83 + (index % 7) * 31) % 1100;
+      const y = 44 + ((index * 47 + (index % 11) * 19) % 500);
+      const large = index % 17 === 0;
+      const alpha = .48 + .32 * Math.sin(twinkle + index * 1.73);
+      ctx.fillStyle = index % 9 === 0 ? `rgba(151,194,255,${alpha})` : `rgba(255,255,235,${alpha})`;
+      ctx.beginPath(); ctx.arc(x, y, large ? 1.9 : .85, 0, Math.PI * 2); ctx.fill();
+      if (large) {
+        ctx.strokeStyle = `rgba(205,225,255,${alpha * .45})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y); ctx.moveTo(x, y - 5); ctx.lineTo(x, y + 5); ctx.stroke();
+      }
+    }
+
+    const floor = ctx.createLinearGradient(0, 548, 0, 620);
+    floor.addColorStop(0, '#202746');
+    floor.addColorStop(1, '#090c18');
+    ctx.fillStyle = floor;
+    ctx.fillRect(0, 560, 1100, 60);
+    ctx.strokeStyle = '#55618c';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, 560); ctx.lineTo(1100, 560); ctx.stroke();
+  }
+
   function drawBackground() {
     const background = level().background;
+    const preset = background?.preset || world.theme || 'meadow';
     if (background?.type === 'image' && background.image) {
       let image = backgroundImageCache.get(background.image);
       if (!image) {
@@ -843,9 +916,14 @@
       }
       if (image.complete && image.naturalWidth) {
         ctx.drawImage(image, 0, 0, 1100, 620);
-        drawGridAndRoof();
+        drawGridAndRoof(background.fallback || world.theme || 'meadow');
         return;
       }
+    }
+    if (preset === 'space') {
+      drawSpaceBackground();
+      drawGridAndRoof('space');
+      return;
     }
     const sky = ctx.createLinearGradient(0, 0, 0, 560);
     sky.addColorStop(0, '#a8d9dd'); sky.addColorStop(.68, '#d9ebc7'); sky.addColorStop(1, '#8fc071');
@@ -860,19 +938,19 @@
     ctx.fillStyle = '#426f4d'; ctx.fillRect(0,560,1100,60);
     ctx.fillStyle = '#5b8e55';
     for (let x=0; x<1100; x+=22) { ctx.beginPath(); ctx.moveTo(x,560); ctx.lineTo(x+8,548-(x%3)*3); ctx.lineTo(x+12,560); ctx.fill(); }
-    drawGridAndRoof();
+    drawGridAndRoof('meadow');
   }
 
-  function drawGridAndRoof() {
+  function drawGridAndRoof(theme = 'meadow') {
     const grid = GAME_CONFIG.placementGrid;
     if (grid.showDots) {
-      if (!placementGridLayer) {
+      if (!placementGridLayer || placementGridTheme !== theme) {
         placementGridLayer = document.createElement('canvas');
         placementGridLayer.width = 1100;
         placementGridLayer.height = 620;
         const guide = placementGridLayer.getContext('2d');
         const size = grid.size;
-        guide.fillStyle = 'rgba(27,69,62,.18)';
+        guide.fillStyle = theme === 'space' ? 'rgba(160,181,235,.2)' : 'rgba(27,69,62,.18)';
         for (let x = size; x < 1100; x += size) {
           for (let y = Math.ceil(40 / size) * size; y < 560; y += size) {
             const major = x % (size * 5) === 0 && y % (size * 5) === 0;
@@ -881,6 +959,7 @@
             guide.fill();
           }
         }
+        placementGridTheme = theme;
       }
       ctx.drawImage(placementGridLayer, 0, 0);
     }
@@ -888,9 +967,9 @@
     // A visible frame makes the playfield boundaries unambiguous. The top
     // rail is also a physical surface, so ambitious spheres stay in play.
     const roofGradient = ctx.createLinearGradient(0, 8, 0, 35);
-    roofGradient.addColorStop(0, '#173f3b');
-    roofGradient.addColorStop(.55, '#315f55');
-    roofGradient.addColorStop(1, '#153a36');
+    roofGradient.addColorStop(0, theme === 'space' ? '#11172e' : '#173f3b');
+    roofGradient.addColorStop(.55, theme === 'space' ? '#354269' : '#315f55');
+    roofGradient.addColorStop(1, theme === 'space' ? '#0b1022' : '#153a36');
     ctx.fillStyle = roofGradient;
     ctx.fillRect(0, 8, 1100, 27);
     ctx.fillStyle = 'rgba(255,255,255,.2)';
@@ -908,13 +987,14 @@
     ctx.fillStyle = '#f3ca52'; roundedRect(-18,-8,35,50,8);
     ctx.strokeStyle = '#513121'; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(18,-50); ctx.stroke();
     ctx.restore();
-    ctx.fillStyle = '#173b3a'; ctx.font = '700 12px system-ui'; ctx.fillText('DROP-OFF', launcher.x - 49, launcher.y + 112);
+    ctx.fillStyle = (level().background?.preset || world.theme) === 'space' ? '#dce8ff' : '#173b3a'; ctx.font = '700 12px system-ui'; ctx.fillText('DROP-OFF', launcher.x - 49, launcher.y + 112);
   }
 
   function drawGoal() {
     const goal = level().goal;
     const radius = goal.radius || 34;
-    ctx.strokeStyle = '#173b3a'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(goal.x,goal.y,radius,0,Math.PI*2); ctx.stroke();
+    const spaceTheme = (level().background?.preset || world.theme) === 'space';
+    ctx.strokeStyle = spaceTheme ? '#8cb8d5' : '#173b3a'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(goal.x,goal.y,radius,0,Math.PI*2); ctx.stroke();
     ctx.fillStyle = '#f4e6c1'; ctx.beginPath(); ctx.arc(goal.x,goal.y,25,0,Math.PI*2); ctx.fill();
     ctx.fillStyle = '#173b3a'; ctx.font = '800 11px system-ui'; ctx.textAlign = 'center'; ctx.fillText('GOAL',goal.x,goal.y+4); ctx.textAlign='left';
   }
@@ -1146,7 +1226,7 @@
   function loadLayout(layout) {
     const track = validTrack(layout.track);
     const levelId = layout.levelId === 'training-meadow' ? 'green-1' : layout.levelId;
-    if (!levels.some(entry => entry.id === levelId)) throw new Error('This layout belongs to an unknown level.');
+    if (!allLevels.some(entry => entry.id === levelId)) throw new Error('This layout belongs to an unknown level.');
     const cleanPieces = sanitisePieces(layout.pieces, levelId, track, layout.playerPiecesOnly === true);
     if (!cleanPieces) throw new Error('This layout is not valid.');
     running = false; ball = null; simulationAccumulator = 0;
@@ -1216,7 +1296,7 @@
     }
     try {
       await storage.ready();
-      const draftRequests = levels.flatMap(entry => ['hare', 'tortoise'].map(track => storage.getState(`draft:${entry.id}:${track}`)));
+      const draftRequests = allLevels.flatMap(entry => ['hare', 'tortoise'].map(track => storage.getState(`draft:${entry.id}:${track}`)));
       const [oldHareDraft, oldTortoiseDraft, savedProgress, oldProgress, lastTrack, lastHareLevel, lastTortoiseLevel, ...drafts] = await Promise.all([
         storage.getState('draft:hare'),
         storage.getState('draft:tortoise'),
@@ -1228,7 +1308,7 @@
         ...draftRequests
       ]);
       let draftIndex = 0;
-      for (const entry of levels) {
+      for (const entry of allLevels) {
         for (const track of ['hare', 'tortoise']) {
           const draft = drafts[draftIndex++];
           const cleanPieces = draft?.levelId === entry.id ? sanitisePieces(draft.pieces, entry.id, track, draft.playerPiecesOnly === true) : null;
@@ -1239,7 +1319,7 @@
         const cleanPieces = sanitisePieces(oldDraft?.pieces, 'green-1', track);
         if (cleanPieces && !drafts[['hare', 'tortoise'].indexOf(track)]) courses['green-1'][track] = cleanPieces;
       }
-      for (const entry of levels) {
+      for (const entry of allLevels) {
         for (const track of ['hare', 'tortoise']) {
           const saved = savedProgress?.[entry.id]?.[track];
           const target = progress[entry.id][track];
@@ -1264,9 +1344,12 @@
           target.standard = target.overall;
         }
       }
-      if (levels.some(entry => entry.id === lastHareLevel)) lastLevelByTrack.hare = lastHareLevel;
-      if (levels.some(entry => entry.id === lastTortoiseLevel)) lastLevelByTrack.tortoise = lastTortoiseLevel;
+      if (allLevels.some(entry => entry.id === lastHareLevel)) lastLevelByTrack.hare = lastHareLevel;
+      if (allLevels.some(entry => entry.id === lastTortoiseLevel)) lastLevelByTrack.tortoise = lastTortoiseLevel;
       storageReady = true;
+      const rememberedTrack = validTrack(lastTrack);
+      const rememberedLevel = lastLevelByTrack[rememberedTrack];
+      if (isLevelUnlocked(rememberedLevel, rememberedTrack)) setWorld(worldForLevel(rememberedLevel));
       activateMode(lastTrack, false);
       setSaveStatus('Saved on this device');
       announceProgress();
@@ -1288,8 +1371,7 @@
     requestAnimationFrame(frame);
   }
 
-  document.getElementById('world-name').textContent = world.name;
-  document.getElementById('world-subtitle').textContent = world.subtitle;
+  setWorld(world);
   window.HareTortoiseGame = {
     open(track = 'hare', levelId) {
       if (running) return false;

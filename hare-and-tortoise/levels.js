@@ -229,6 +229,44 @@
           availablePieces: { platform: 3, ramp: 2, spring: 1, pipe: 0 }
         }
       ]
+    },
+    {
+      id: 'bounce-in-space',
+      number: 2,
+      name: 'Bounce in Space',
+      subtitle: 'Avoid the black holes',
+      theme: 'space',
+      levels: [
+        {
+          id: 'space-1',
+          revision: 1,
+          number: 1,
+          name: "Eeek, it's a black hole",
+          description: '',
+          scoring: {
+            hare: { par: 7, stars: { one: 5, two: 4, three: 3 } },
+            tortoise: { par: 12, stars: { one: 15, two: 20, three: 25 } },
+            carrotClockEffectSeconds: 1
+          },
+          launcher: { x: 917, y: 109, vx: 290, vy: -52 },
+          goal: { x: 152, y: 467, radius: 34 },
+          carrots: [
+            { x: 280, y: 80 },
+            { x: 156, y: 209 },
+            { x: 1030, y: 417 }
+          ],
+          goldenHedgehog: { x: 533, y: 401 },
+          fixedObjects: [
+            { type: 'blackhole', x: 531, y: 300, radius: 23 },
+            { type: 'block', x: 1032, y: 495, width: 128, height: 128, color: '#466c91' }
+          ],
+          starter: [
+            { type: 'pipe', x: 153.42283950617283, y: 76.00000000000001, angle: 4.71238898038469 }
+          ],
+          background: { type: 'preset', preset: 'space', image: '' },
+          availablePieces: { platform: 3, ramp: 2, spring: 2, pipe: 1 }
+        }
+      ]
     }
   ];
 })();
