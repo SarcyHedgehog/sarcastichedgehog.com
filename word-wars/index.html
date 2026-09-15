@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#101b38">
+  <title>Word Wars — Prototype</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">Sarcastic Hedgehog presents</p>
+        <h1>WORD <span>WARS</span></h1>
+      </div>
+      <button id="rules-button" class="icon-button" aria-label="How to play">?</button>
+    </header>
+
+    <section id="setup-screen" class="screen active">
+      <div class="hero-mark" aria-hidden="true">
+        <span>W</span><span>O</span><span>R</span><span>D</span>
+      </div>
+      <h2>Start a battle</h2>
+      <p class="intro">Play on one phone, or challenge somebody elsewhere with a battle code.</p>
+      <div class="setup-mode segmented-control">
+        <button id="passplay-mode" class="active" type="button">Same device</button>
+        <button id="multiplayer-mode" type="button">Online</button>
+      </div>
+      <form id="setup-form" class="setup-form">
+        <label>Player 1<input id="player-one" maxlength="16" value="James" autocomplete="off"></label>
+        <div class="versus">VS</div>
+        <label>Player 2<input id="player-two" maxlength="16" value="Arthur" autocomplete="off"></label>
+        <fieldset class="word-length-setting">
+          <legend>Minimum word length</legend>
+          <div class="segmented-control">
+            <label><input type="radio" name="minimum-word-length" value="3" checked><span>3</span></label>
+            <label><input type="radio" name="minimum-word-length" value="4"><span>4</span></label>
+            <label><input type="radio" name="minimum-word-length" value="5"><span>5</span></label>
+          </div>
+          <small>Words one letter longer begin sending attack tiles.</small>
+        </fieldset>
+        <button class="primary-button" type="submit">Begin battle</button>
+      </form>
+      <form id="multiplayer-form" class="setup-form multiplayer-form" hidden>
+        <label>Your name<input id="multiplayer-name" maxlength="16" value="James" autocomplete="off"></label>
+        <fieldset class="word-length-setting">
+          <legend>Minimum word length (when creating)</legend>
+          <div class="segmented-control">
+            <label><input type="radio" name="multiplayer-word-length" value="3" checked><span>3</span></label>
+            <label><input type="radio" name="multiplayer-word-length" value="4"><span>4</span></label>
+            <label><input type="radio" name="multiplayer-word-length" value="5"><span>5</span></label>
+          </div>
+        </fieldset>
+        <button id="create-local-match" class="primary-button" type="button">Create online battle</button>
+        <div class="local-divider"><span>or join one</span></div>
+        <label>Battle code<input id="join-code" maxlength="6" placeholder="ABC123" autocomplete="off" autocapitalize="characters"></label>
+        <button id="join-local-match" class="secondary-button" type="button">Join battle</button>
+      </form>
+      <p class="prototype-note">All letter combinations at your chosen minimum length are accepted. Dictionary validation comes later.</p>
+    </section>
+
+    <section id="lobby-screen" class="screen lobby-screen">
+      <p class="eyebrow">Online multiplayer</p>
+      <div class="shield-mark">⌁</div>
+      <h2>Battle code</h2>
+      <button id="lobby-code" class="battle-code" type="button" aria-label="Copy battle code">------</button>
+      <p>Send this code to your opponent. They can open the game on another device, choose <b>Online</b>, and join from anywhere.</p>
+      <p class="waiting-pulse">Waiting for an opponent…</p>
+      <button id="cancel-lobby" class="secondary-button" type="button">Cancel</button>
+    </section>
+
+    <section id="remote-wait-screen" class="screen handoff-screen">
+      <p class="eyebrow">Online multiplayer</p>
+      <div class="shield-mark">↯</div>
+      <h2>Waiting for <span id="remote-player">opponent</span></h2>
+      <p>Battle <b id="remote-code">------</b> will update automatically when your turn begins.</p>
+      <button id="leave-local-match" class="secondary-button" type="button">Leave this view</button>
+    </section>
+
+    <section id="game-screen" class="screen" aria-live="polite">
+      <div class="battle-status">
+        <div>
+          <p class="turn-label">CURRENT TURN</p>
+          <strong id="current-player">Player 1</strong>
+        </div>
+        <div class="round-pill">TURN <span id="turn-number">1</span></div>
+      </div>
+
+      <div class="opponent-strip">
+        <div>
+          <span id="opponent-name">Opponent</span>
+          <small>enemy board</small>
+        </div>
+        <div class="danger-meter" aria-label="Opponent board height"><i id="opponent-danger"></i></div>
+        <b id="opponent-count">20</b>
+        <button id="spy-button" class="spy-button" type="button" hidden aria-label="Use Spy Glass">
+          <span>◉</span><b id="spy-count">0</b>
+        </button>
+      </div>
+
+      <section class="letter-board-panel">
+        <div class="panel-heading">
+          <div><p>YOUR LETTER BOARD</p><span>Tap tiles to build a word</span></div>
+          <div class="board-actions">
+            <div class="tile-key" aria-label="Tile colour key">
+              <span><i class="key-existing"></i>Yours</span>
+              <span><i class="key-fresh"></i>New</span>
+              <span><i class="key-attack"></i>Attack</span>
+            </div>
+            <button id="undo-button" class="text-button" type="button">Undo</button>
+          </div>
+        </div>
+        <div id="board-stage" class="board-stage">
+          <div id="letter-board" class="letter-board" aria-label="Letter board"></div>
+          <div id="overflow-line" class="overflow-line"><span>OVERFLOW</span></div>
+        </div>
+        <div class="bar-status"><span><b id="safe-rows">7</b> safe rows</span><span>ceiling drops in <b id="bar-countdown">14</b> <i id="bar-countdown-unit">turns</i></span></div>
+      </section>
+
+      <section class="word-builder">
+        <div class="current-word-row">
+          <div id="current-word" class="current-word empty" data-placeholder="YOUR WORD"></div>
+          <button id="add-word-button" class="add-word-button" type="button" disabled>+</button>
+        </div>
+        <p id="builder-hint">Choose at least 3 letters</p>
+      </section>
+
+      <section class="turn-summary">
+        <div class="summary-heading">
+          <h3>Words this turn</h3>
+          <span><b id="attack-total">0</b> attack tiles</span>
+        </div>
+        <div id="word-list" class="word-list"><p class="empty-list">No words assembled yet.</p></div>
+        <div id="pending-powers" class="pending-powers" aria-live="polite"></div>
+      </section>
+
+      <button id="submit-turn-button" class="primary-button submit-button" type="button" disabled>Submit turn</button>
+    </section>
+
+    <section id="resolution-screen" class="screen resolution-screen">
+      <div id="power-emblem" class="power-emblem">×</div>
+      <p id="power-kicker" class="eyebrow">Special tile</p>
+      <h2 id="power-title">Remove a tile</h2>
+      <p id="power-instruction" class="power-instruction">Choose one tile to remove from your board.</p>
+
+      <div id="resolution-board-wrap" class="resolution-board-wrap">
+        <div id="resolution-board" class="letter-board resolution-board"></div>
+        <div id="column-targets" class="column-targets" hidden></div>
+      </div>
+
+      <div id="attack-picker" class="attack-picker" hidden></div>
+      <p id="resolution-progress" class="resolution-progress"></p>
+      <div class="resolution-actions">
+        <button id="skip-power-button" class="secondary-button" type="button">Skip</button>
+        <button id="confirm-power-button" class="primary-button" type="button" hidden disabled>Confirm</button>
+      </div>
+    </section>
+
+    <section id="turn-review-screen" class="screen turn-review-screen">
+      <p class="eyebrow">Turn resolved</p>
+      <h2><span id="review-player">Player</span>’s tower settles</h2>
+      <p class="review-intro">Take a moment to see what changed before passing the device.</p>
+      <div id="review-board" class="letter-board review-board" aria-label="Settled letter board"></div>
+      <div id="review-summary" class="review-summary"></div>
+      <button id="review-continue-button" class="primary-button" type="button">Pass the battle</button>
+    </section>
+
+    <section id="handoff-screen" class="screen handoff-screen">
+      <p class="eyebrow">Turn complete</p>
+      <div class="shield-mark">↯</div>
+      <h2>Pass to <span id="handoff-player">Player 2</span></h2>
+      <p id="handoff-summary">Incoming tiles are waiting.</p>
+      <button id="continue-button" class="primary-button" type="button">I’m ready</button>
+    </section>
+
+    <section id="result-screen" class="screen result-screen">
+      <p class="eyebrow">Battle over</p>
+      <div class="trophy">★</div>
+      <h2 id="result-title"><span id="winner-name">Player</span> wins!</h2>
+      <p id="win-reason"></p>
+      <button id="rematch-button" class="primary-button" type="button">Rematch</button>
+    </section>
+  </main>
+
+  <dialog id="rules-dialog">
+    <button id="close-rules" class="dialog-close" aria-label="Close">×</button>
+    <p class="eyebrow">How to play</p>
+    <h2>Clear yours. Flood theirs.</h2>
+    <ol>
+      <li>Tap letters to build one or more words.</li>
+      <li>Choose a minimum word length before battle. Each letter beyond it sends one attack tile, up to four.</li>
+      <li>Pink removes a tile, gold moves a tile, and paired red tiles earn a Spy Glass.</li>
+      <li>Pink, gold and red special tiles enter play from turns 3, 5 and 7 respectively.</li>
+      <li>At the start of your turn, attacks land first, followed by fresh letters.</li>
+      <li>A tile touching the overflow line loses. Every 14 player-turns, that line drops one row across both towers.</li>
+      <li>Empty your board, or make your opponent hit the line, to win.</li>
+    </ol>
+    <p class="prototype-note">For this prototype, all combinations meeting the chosen minimum length count as words.</p>
+  </dialog>
+
+  <dialog id="spy-dialog" class="spy-dialog">
+    <div class="spy-beam"></div>
+    <p class="eyebrow">Spy Glass</p>
+    <h2><span id="spy-opponent-name">Opponent</span>’s board</h2>
+    <p class="spy-warning">Intelligence fades in five seconds.</p>
+    <div id="spy-board" class="letter-board spy-board"></div>
+    <button id="close-spy" class="secondary-button" type="button">Close now</button>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="config.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
