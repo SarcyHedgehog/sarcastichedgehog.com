@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08111f">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Home Remote</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="remote-page">
+  <main class="shell">
+    <header class="hero compact">
+      <div>
+        <p class="eyebrow">Sarcastic Hedgehog</p>
+        <h1>Home Remote</h1>
+        <p id="connection-detail" class="muted">Securely connect to Home Assistant.</p>
+      </div>
+      <span id="connection-pill" class="status offline">Offline</span>
+    </header>
+
+    <section id="login-panel" class="panel login-panel">
+      <form id="login-form">
+        <label for="password">Remote password</label>
+        <div class="login-row">
+          <input id="password" type="password" required autocomplete="current-password" placeholder="Password">
+          <button type="submit" class="primary">Connect</button>
+        </div>
+        <p id="login-error" class="error" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="remote-panel" hidden>
+      <div class="toolbar">
+        <input id="entity-search" type="search" placeholder="Search remote controls…" aria-label="Search controls">
+        <button id="disconnect" class="quiet">Disconnect</button>
+      </div>
+      <div id="entity-groups"></div>
+    </section>
+  </main>
+  <script src="config.js"></script>
+  <script type="module" src="remote-app.js"></script>
+</body>
+</html>
