@@ -1,9 +1,9 @@
-const CACHE = "home-remote-v3";
+const CACHE = "home-remote-v4";
 const SHELL = [
-  "./", "./index.html", "./study.html", "./styles.css", "./study.css",
-  "./config.js", "./remote-app.js", "./study-app.js", "./study-config.js", "./study-scene.js",
+  "./public-app.html", "./study.html", "./study-model.html", "./styles.css", "./study.css",
+  "./config.js", "./remote-app.js", "./study-app.js", "./study-config.js", "./study-scene.js", "./study-model-scene.js",
   "./manifest.webmanifest", "./pwa.js", "./vendor/photon.min.js", "./vendor/three.module.min.js",
-  "./vendor/GLTFLoader.js", "./models/ritchie-sofa/scene.gltf", "./models/ritchie-sofa/scene.bin",
+  "./vendor/GLTFLoader.js", "./models/study/study.glb", "./models/ritchie-sofa/scene.gltf", "./models/ritchie-sofa/scene.bin",
   "./models/ritchie-sofa/textures/FABRIC_baseColor.jpeg", "./models/ritchie-sofa/textures/FLOOR_baseColor.png",
   "./icons/icon-192x192.png", "./icons/icon-512x512.png"
 ];
@@ -23,6 +23,6 @@ self.addEventListener("fetch", event => {
         caches.open(CACHE).then(cache => cache.put(event.request, copy));
       }
       return response;
-    }).catch(() => caches.match(event.request).then(cached => cached || caches.match("./")))
+    }).catch(() => caches.match(event.request).then(cached => cached || caches.match("./public-app.html")))
   );
 });
