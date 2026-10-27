@@ -41,7 +41,10 @@ ignored and must never be committed.
 ## Restored in Flight Test 02
 
 - Original sky, three parallax foliage layers, ground and helicopter artwork
-- Business Bird, Witch Pig and Bomb Fish animation sheets
+- Original drifting cloud-particle artwork restored over the released sky
+- Original staged enemy sequence recovered from the Unity scene: Business Bird,
+  tracking Prop Dog, Witch Pig, Monkey Mouth, Sun Demon and late-game Bomb Fish
+- Prop Dog and Sun Demon animations restored from the combined original atlas
 - Ground and ceiling Monkey Mouths: warning, pause, emerge, then travel
 - Repair, shield and slowdown pickups with their original artwork and sounds
 - Animated helicopter shield with the original expiry warning flash

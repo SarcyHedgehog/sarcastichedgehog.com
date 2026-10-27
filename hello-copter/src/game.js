@@ -11,6 +11,7 @@ const imageSources = {
   chopper: 'assets/images/chopper.png',
   rescuedBird: 'assets/images/bird.png',
   sky: 'assets/images/background/sky.png',
+  cloud: 'assets/images/background/cloud.png',
   treesFar: 'assets/images/background/trees-far.png',
   treesMid: 'assets/images/background/trees-mid.png',
   treesNear: 'assets/images/background/trees-near.png',
@@ -291,6 +292,22 @@ function drawParallax(image, speed, groundY, scale, alpha = 1) {
   ctx.restore();
 }
 
+function drawClouds(width, height, time) {
+  if (!ready(images.cloud)) return;
+  const span = width + 380;
+  const verticalBand = Math.max(130, height * .34);
+  ctx.save();
+  ctx.globalAlpha = .58;
+  for (let index = 0; index < 7; index++) {
+    const size = 104 + (index % 3) * 30;
+    const drift = time * (4 + index % 3);
+    const x = wrap(index * 347 - camera.x * .065 + drift, span) - 190;
+    const y = 18 + (index * 79) % verticalBand;
+    ctx.drawImage(images.cloud, x, y, size, size);
+  }
+  ctx.restore();
+}
+
 function drawGround(width, height, groundY) {
   ctx.fillStyle = '#397b4e';
   ctx.fillRect(0, groundY, width, height - groundY);
@@ -303,6 +320,7 @@ function drawGround(width, height, groundY) {
 
 function drawWorld(width, height, time) {
   const groundY = height * .5 + (camera.y - 80);
+  drawClouds(width, height, time);
   drawParallax(images.treesFar, .10, groundY + 40, 1.55, .72);
   drawParallax(images.treesMid, .24, groundY + 32, 1.25, .88);
   drawParallax(images.treesNear, .46, groundY + 25, 1.05, 1);
@@ -423,6 +441,14 @@ function drawEnemy(point, entity, time) {
   if (entity.kind === 'businessBird') {
     const frame = Math.floor(time * 11 + entity.phase) % 13;
     drawSheet(images.enemyAtlas, frame, 8, 128, 128, -48, -48, 96, 96);
+  } else if (entity.kind === 'propDog') {
+    // Frames 13-24 of the original combined atlas are the tracking Prop Dog.
+    const frame = 13 + Math.floor(time * 11 + entity.phase) % 12;
+    drawSheet(images.enemyAtlas, frame, 8, 128, 128, -50, -50, 100, 100);
+  } else if (entity.kind === 'sunDemon') {
+    // Frames 25-56 are the full Sun Demon animation.
+    const frame = 25 + Math.floor(time * 14 + entity.phase) % 32;
+    drawSheet(images.enemyAtlas, frame, 8, 128, 128, -58, -58, 116, 116);
   } else if (entity.kind === 'witchPig') {
     // The recovered sheet has thirteen painted cells; the last three are
     // transparent. Cycling all sixteen made the sprite visibly blink out.

@@ -2,6 +2,26 @@ import { WORLD_WIDTH, WORLD_HEIGHT, wrap, wrappedDelta, wrappedDistance, seeded 
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
+// The recovered Unity scene measures progression in 62-unit ground tiles.
+// The browser HUD measures distance as travelled world units / 44, so this
+// conversion preserves the original enemy-introduction points.
+const ORIGINAL_TILE_DISTANCE = 62 / 44;
+
+export function originalEnemyStage(distance) {
+  const tiles = distance / ORIGINAL_TILE_DISTANCE;
+  if (tiles < 160) return {kinds: ['businessBird'], fast: false};
+  if (tiles < 270) return {kinds: ['propDog'], fast: false};
+  if (tiles < 340) return {kinds: ['witchPig'], fast: false};
+  if (tiles < 360) return {kinds: ['monkeyMouth'], fast: false};
+  if (tiles < 450) return {kinds: ['businessBird', 'witchPig'], fast: false};
+  if (tiles < 530) return {kinds: ['monkeyMouth'], fast: false};
+  if (tiles < 700) return {kinds: ['sunDemon'], fast: false};
+  return {
+    kinds: ['witchPig', 'witchPig', 'businessBird', 'propDog', 'sunDemon', 'monkeyMouth', 'bombFish'],
+    fast: true,
+  };
+}
+
 export class Simulation {
   constructor(seed = Date.now()) {
     this.random = seeded(seed);
@@ -68,11 +88,32 @@ export class Simulation {
   }
 
   spawnEnemyWave(x, direction) {
-    const kinds = ['businessBird', 'businessBird', 'witchPig', 'bombFish'];
-    const kind = kinds[(this.random() * kinds.length) | 0];
+    const stage = originalEnemyStage(this.distance);
+    const kind = stage.kinds[(this.random() * stage.kinds.length) | 0];
+
+    if (kind === 'monkeyMouth') {
+      this.spawnMonkeyMouth(x, direction);
+      return;
+    }
+
+    if (kind === 'propDog' || kind === 'sunDemon' || kind === 'bombFish') {
+      const baseY = kind === 'bombFish' ? 112 + this.random() * 34 : 220 + this.random() * 390;
+      const speed = kind === 'propDog' ? 126 : kind === 'sunDemon' ? 145 : 82;
+      this.add({
+        type: 'enemy', kind, x, y: baseY,
+        vx: -direction * speed, vy: 0,
+        radius: kind === 'sunDemon' ? 42 : 31,
+        phase: this.random() * Math.PI * 2,
+        baseY,
+        amplitude: kind === 'sunDemon' ? 94 : 18,
+        frequency: kind === 'sunDemon' ? 2.2 : 1.6,
+      });
+      return;
+    }
+
     const waveId = this.nextWaveId++;
     const count = 3;
-    const speed = 92 + this.random() * 38;
+    const speed = (stage.fast ? 148 : 92) + this.random() * (stage.fast ? 45 : 38);
     const baseY = 255 + this.random() * 330;
     const amplitude = 72 + this.random() * 38;
     const frequency = 1.35 + this.random() * .8;
@@ -107,8 +148,6 @@ export class Simulation {
       this.add({type: 'bird', x, y: baseY, baseY, vx: -direction * (15 + this.random() * 30), vy: 0, radius: 20, phase: this.random() * 6.28});
     } else if (roll < .26) {
       this.spawnPowerup(x, direction);
-    } else if (roll < .38 && this.distance > 90) {
-      this.spawnMonkeyMouth(x, direction);
     } else {
       this.spawnEnemyWave(x, direction);
     }
@@ -182,9 +221,18 @@ export class Simulation {
   }
 
   updateEnemy(e, p, dt, speed) {
-    if (e.kind === 'businessBird' || e.kind === 'witchPig' || e.kind === 'bombFish') {
+    if (e.kind === 'businessBird' || e.kind === 'witchPig' || e.kind === 'sunDemon' || e.kind === 'bombFish') {
       e.x = wrap(e.x + e.vx * dt * speed);
       e.y = e.baseY + Math.sin(e.age * e.frequency + e.phase) * e.amplitude;
+    } else if (e.kind === 'propDog') {
+      const dx = wrappedDelta(e.x, p.x);
+      const dy = p.y - e.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const trackingSpeed = 150;
+      e.vx += ((dx / length) * trackingSpeed - e.vx) * Math.min(1, dt * 2.4);
+      e.vy += ((dy / length) * trackingSpeed - e.vy) * Math.min(1, dt * 2.4);
+      e.x = wrap(e.x + e.vx * dt * speed);
+      e.y = clamp(e.y + e.vy * dt * speed, 90, WORLD_HEIGHT - 90);
     } else if (e.kind === 'monkeyMouth') {
       e.stateTime += dt;
       const direction = e.side === 'ground' ? 1 : -1;
